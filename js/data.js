@@ -1,8 +1,5 @@
 const dataViews = {
-    cachedB2B: null,
-    cachedTax: null,
-    cachedAsset: null,
-    cachedCard: null,
+    cachedB2B: null, cachedTax: null, cachedAsset: null, cachedCard: null,
 
     getB2BData() {
         if(this.cachedB2B) return this.cachedB2B;
@@ -14,21 +11,11 @@ const dataViews = {
             let dday = Math.floor(Math.random() * 90) + 1;
             let amt = (Math.floor(Math.random() * 500) + 10) * 1000000;
             let type = types[Math.floor(Math.random() * types.length)];
-            data.push({
-                name: companies[i % companies.length] + (i>15 ? ` ${i}지점` : ''),
-                regNo: `${Math.floor(Math.random()*900)+100}-${Math.floor(Math.random()*90)+10}-${Math.floor(Math.random()*90000)+10000}`,
-                bank: banks[Math.floor(Math.random() * banks.length)],
-                type: type,
-                amount: amt,
-                dday: dday,
-                date: `2026-0${3 + Math.floor(dday/30)}-${String((dday%28)+1).padStart(2,'0')}`,
-                status: dday <= 30 && type !== 'B2B매입' ? 'target' : 'monitor'
-            });
+            data.push({ name: companies[i % companies.length] + (i>15 ? ` ${i}지점` : ''), regNo: `${Math.floor(Math.random()*900)+100}-${Math.floor(Math.random()*90)+10}-${Math.floor(Math.random()*90000)+10000}`, bank: banks[Math.floor(Math.random() * banks.length)], type: type, amount: amt, dday: dday, date: `2026-0${3 + Math.floor(dday/30)}-${String((dday%28)+1).padStart(2,'0')}`, status: dday <= 30 && type !== 'B2B매입' ? 'target' : 'monitor' });
         }
         this.cachedB2B = data.sort((a,b) => a.dday - b.dday);
         return this.cachedB2B;
     },
-
     getTaxData() {
         if(this.cachedTax) return this.cachedTax;
         const partners = ['삼성물산(주)', '한국전력공사', '(주)LG화학', '현대자동차(주)', 'SK하이닉스', '포스코건설', 'CJ제일제당', '대한항공', 'KT', '이마트'];
@@ -37,18 +24,11 @@ const dataViews = {
         for(let i=0; i<300; i++) {
             let isSales = Math.random() > 0.4;
             let amt = (Math.floor(Math.random() * 900) + 5) * 1000000;
-            data.push({
-                type: isSales ? '매출' : '매입',
-                partner: partners[Math.floor(Math.random() * partners.length)] + (i>10 ? ` ${i}지사` : ''),
-                item: items[Math.floor(Math.random() * items.length)],
-                amount: amt,
-                status: isSales && amt > 100000000 ? '우량' : (isSales ? '보통' : '지출')
-            });
+            data.push({ type: isSales ? '매출' : '매입', partner: partners[Math.floor(Math.random() * partners.length)] + (i>10 ? ` ${i}지사` : ''), item: items[Math.floor(Math.random() * items.length)], amount: amt, status: isSales && amt > 100000000 ? '우량' : (isSales ? '보통' : '지출') });
         }
         this.cachedTax = data;
         return this.cachedTax;
     },
-
     getAssetData() {
         if(this.cachedAsset) return this.cachedAsset;
         const companies = ['미래건설산업(주)', '(주)글로벌네트웍스', '제일유통', '하나시스템(주)', '태양물산', '한국정밀', '대보건설', '현대유통'];
@@ -56,18 +36,11 @@ const dataViews = {
         let data = [];
         for(let i=0; i<150; i++) {
             let dday = Math.floor(Math.random() * 60) + 1;
-            data.push({
-                name: companies[i % companies.length] + (i>8 ? ` ${i}지점` : ''),
-                bank: banks[Math.floor(Math.random() * banks.length)],
-                product: Math.random() > 0.5 ? '정기예금' : '적금',
-                amount: (Math.floor(Math.random() * 300) + 50) * 10000000,
-                dday: dday
-            });
+            data.push({ name: companies[i % companies.length] + (i>8 ? ` ${i}지점` : ''), bank: banks[Math.floor(Math.random() * banks.length)], product: Math.random() > 0.5 ? '정기예금' : '적금', amount: (Math.floor(Math.random() * 300) + 50) * 10000000, dday: dday });
         }
         this.cachedAsset = data.sort((a,b) => a.dday - b.dday);
         return this.cachedAsset;
     },
-
     getCardData() {
         if(this.cachedCard) return this.cachedCard;
         const companies = ['미래건설산업(주)', '(주)글로벌네트웍스', '제일유통', '하나시스템(주)', '태양물산', '현대유통'];
@@ -75,12 +48,7 @@ const dataViews = {
         const banks = ['현대카드', '삼성카드', '신한카드', '국민카드'];
         let data = [];
         for(let i=0; i<150; i++) {
-            data.push({
-                name: companies[i % companies.length] + (i>5 ? ` ${i}본부` : ''),
-                category: categories[Math.floor(Math.random() * categories.length)],
-                bank: banks[Math.floor(Math.random() * banks.length)],
-                amount: (Math.floor(Math.random() * 50) + 5) * 1000000
-            });
+            data.push({ name: companies[i % companies.length] + (i>5 ? ` ${i}본부` : ''), category: categories[Math.floor(Math.random() * categories.length)], bank: banks[Math.floor(Math.random() * banks.length)], amount: (Math.floor(Math.random() * 50) + 5) * 1000000 });
         }
         this.cachedCard = data.sort((a,b) => b.amount - a.amount);
         return this.cachedCard;
@@ -103,13 +71,11 @@ const dataViews = {
             </tr>
         `).join('');
     },
-
     filterB2B() {
         const keyword = document.getElementById('b2b-search').value.toLowerCase();
         const filtered = this.getB2BData().filter(i => i.name.toLowerCase().includes(keyword) || i.regNo.includes(keyword) || i.bank.toLowerCase().includes(keyword));
         document.getElementById('b2b-tbody').innerHTML = this.buildB2BRows(filtered);
     },
-
     renderB2B() {
         const data = this.getB2BData();
         return `
@@ -171,13 +137,11 @@ const dataViews = {
             </div>
         `).join('');
     },
-
     filterAsset() {
         const keyword = document.getElementById('asset-search').value.toLowerCase();
         const filtered = this.getAssetData().filter(i => i.name.toLowerCase().includes(keyword) || i.bank.toLowerCase().includes(keyword));
         document.getElementById('asset-list').innerHTML = this.buildAssetRows(filtered);
     },
-
     renderAsset() { 
         return `
         <div class="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -222,13 +186,11 @@ const dataViews = {
             </tr>
         `).join('');
     },
-
     filterCard() {
         const keyword = document.getElementById('card-search').value.toLowerCase();
         const filtered = this.getCardData().filter(i => i.name.toLowerCase().includes(keyword) || i.category.toLowerCase().includes(keyword) || i.bank.toLowerCase().includes(keyword));
         document.getElementById('card-tbody').innerHTML = this.buildCardRows(filtered);
     },
-
     renderCard() { 
         return `
         <div class="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -294,13 +256,11 @@ const dataViews = {
             </tr>
         `).join('');
     },
-
     filterTax() {
         const keyword = document.getElementById('tax-search').value.toLowerCase();
         const filtered = this.getTaxData().filter(i => i.partner.toLowerCase().includes(keyword) || i.item.toLowerCase().includes(keyword) || i.type.includes(keyword));
         document.getElementById('tax-tbody').innerHTML = this.buildTaxRows(filtered);
     },
-
     renderTax() { 
         return `
         <div class="max-w-[1400px] mx-auto flex flex-col h-full">
