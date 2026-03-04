@@ -353,13 +353,16 @@ const app = {
             'dashboard': { render: () => dashboardView.render(), init: () => dashboardView.initCharts() },
             'pcStatus': { render: () => controlViews.renderPcStatus() },
             'flagHistory': { render: () => controlViews.renderFlagHistory() },
+            'rebootView': { render: () => controlViews.renderRebootView() },
             'groupManage': { render: () => controlViews.renderGroupManage() },
             'reportView': { render: () => controlViews.renderReportView() },
             'settings': { render: () => controlViews.renderSettings(this.state) },
             'assetView': { render: () => dataViews.renderAsset(), init: () => dataViews.initAssetChart() },
+            'depositView': { render: () => dataViews.renderDepositView(), init: () => dataViews.initDepositChart() },
             'b2bView': { render: () => dataViews.renderB2B() },
             'cardView': { render: () => dataViews.renderCard(), init: () => dataViews.initCardChart() },
-            'taxView': { render: () => dataViews.renderTax() }
+            'taxView': { render: () => dataViews.renderTax() },
+            'cashFlow': { render: () => dataViews.renderCashFlow(), init: () => dataViews.initCashFlowChart() }
         };
         if(views[viewName]) {
             container.innerHTML = views[viewName].render();

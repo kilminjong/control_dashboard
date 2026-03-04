@@ -16,7 +16,8 @@ const controlViews = {
         if(data.length === 0) return `<tr><td colspan="6" class="text-center py-10 text-slate-500 font-bold">검색 결과가 없습니다.</td></tr>`;
         return data.map(item => {
             const nameClickHtml = `<span onclick="app.openMonitoringModal('${item.name}')" class="cursor-pointer text-teal-700 hover:text-teal-900 hover:underline font-bold transition-colors text-[13px]">${item.name}</span>`;
-            if (item.status === 'critical') return `<tr class="hover:bg-slate-50 transition-colors"><td class="px-4 py-3 text-center"><input type="checkbox" class="rounded border-slate-300"></td><td class="px-4 py-3"><div class="flex items-center font-bold text-red-600"><span class="w-2 h-2 rounded-full bg-red-500 mr-2 shadow-[0_0_4px_rgba(239,68,68,0.6)]"></span>장애 발생</div></td><td class="px-4 py-3">${nameClickHtml}<span class="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded ml-1">${item.id}</span></td><td class="px-4 py-3"><p class="font-mono text-slate-600 font-medium">${item.ip}</p><p class="text-[10px] text-slate-400 mt-0.5">${item.os}</p></td><td class="px-4 py-3"><p class="text-red-600 font-bold font-mono">${item.lastPing}</p><p class="text-[10px] text-slate-500 mt-0.5">통신 끊김 <span class="font-bold">${item.elapsed}</span></p></td><td class="px-4 py-3 text-right"><button class="text-[11px] px-3 py-1.5 border border-slate-300 rounded bg-slate-800 text-white font-bold hover:bg-slate-700 shadow-sm">원격 재시작</button></td></tr>`;
+            if (item.status === 'persistent') return `<tr class="hover:bg-purple-50/30 transition-colors"><td class="px-4 py-3 text-center"><input type="checkbox" class="rounded border-slate-300"></td><td class="px-4 py-3"><div class="flex items-center font-bold text-purple-600"><span class="w-2 h-2 rounded-full bg-purple-500 mr-2 shadow-[0_0_4px_rgba(168,85,247,0.6)]"></span>지속 장애</div><span class="text-[9px] text-purple-500 ml-4">재구동 ${item.rebootAttempts||0}회 실패</span></td><td class="px-4 py-3">${nameClickHtml}<span class="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded ml-1">${item.id}</span></td><td class="px-4 py-3"><p class="font-mono text-slate-600 font-medium">${item.ip}</p><p class="text-[10px] text-slate-400 mt-0.5">${item.os}</p></td><td class="px-4 py-3"><p class="text-purple-600 font-bold font-mono">${item.lastPing}</p><p class="text-[10px] text-slate-500 mt-0.5">${item.elapsed}</p></td><td class="px-4 py-3 text-right"><button class="text-[11px] px-3 py-1.5 border border-purple-300 rounded bg-purple-600 text-white font-bold hover:bg-purple-700 shadow-sm">운영자 확인</button></td></tr>`;
+            else if (item.status === 'critical') return `<tr class="hover:bg-slate-50 transition-colors"><td class="px-4 py-3 text-center"><input type="checkbox" class="rounded border-slate-300"></td><td class="px-4 py-3"><div class="flex items-center font-bold text-red-600"><span class="w-2 h-2 rounded-full bg-red-500 mr-2 shadow-[0_0_4px_rgba(239,68,68,0.6)]"></span>장애 발생</div></td><td class="px-4 py-3">${nameClickHtml}<span class="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded ml-1">${item.id}</span></td><td class="px-4 py-3"><p class="font-mono text-slate-600 font-medium">${item.ip}</p><p class="text-[10px] text-slate-400 mt-0.5">${item.os}</p></td><td class="px-4 py-3"><p class="text-red-600 font-bold font-mono">${item.lastPing}</p><p class="text-[10px] text-slate-500 mt-0.5">통신 끊김 <span class="font-bold">${item.elapsed}</span></p></td><td class="px-4 py-3 text-right"><button class="text-[11px] px-3 py-1.5 border border-slate-300 rounded bg-slate-800 text-white font-bold hover:bg-slate-700 shadow-sm">원격 재시작</button></td></tr>`;
             else if (item.status === 'warning') return `<tr class="hover:bg-slate-50 transition-colors"><td class="px-4 py-3 text-center"><input type="checkbox" class="rounded border-slate-300"></td><td class="px-4 py-3"><div class="flex items-center font-bold text-yellow-600"><span class="w-2 h-2 rounded-full bg-yellow-400 mr-2"></span>수신 지연 (주의)</div></td><td class="px-4 py-3">${nameClickHtml}<span class="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded ml-1">${item.id}</span></td><td class="px-4 py-3"><p class="font-mono text-slate-600 font-medium">${item.ip}</p><p class="text-[10px] text-slate-400 mt-0.5">${item.os}</p></td><td class="px-4 py-3"><p class="text-yellow-600 font-bold font-mono">${item.lastPing}</p><p class="text-[10px] text-slate-500 mt-0.5">지연 발생 <span class="font-bold">${item.elapsed}</span></p></td><td class="px-4 py-3 text-right"><button class="text-[11px] px-3 py-1.5 border border-slate-300 rounded bg-white text-slate-700 font-bold hover:bg-slate-50 shadow-sm">상태 점검</button></td></tr>`;
             else return `<tr class="hover:bg-slate-50 transition-colors"><td class="px-4 py-3 text-center"><input type="checkbox" class="rounded border-slate-300"></td><td class="px-4 py-3"><div class="flex items-center font-bold text-teal-600"><span class="w-2 h-2 rounded-full bg-teal-500 mr-2"></span>정상 통신</div></td><td class="px-4 py-3">${nameClickHtml}<span class="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded ml-1">${item.id}</span></td><td class="px-4 py-3"><p class="font-mono text-slate-600 font-medium">${item.ip}</p><p class="text-[10px] text-slate-400 mt-0.5">${item.os}</p></td><td class="px-4 py-3"><p class="text-slate-600 font-bold font-mono">${item.lastPing}</p><p class="text-[10px] text-slate-500 mt-0.5">1분 이내 정상 수신</p></td><td class="px-4 py-3 text-right"><button class="text-[11px] text-teal-600 hover:underline font-bold">상세 로그</button></td></tr>`;
         }).join('');
@@ -26,7 +27,7 @@ const controlViews = {
         const statusVal = document.getElementById('status-filter').value;
         const filtered = DB.getHosts().filter(h => {
             const matchKeyword = h.name.toLowerCase().includes(keyword) || h.ip.includes(keyword) || h.id.toLowerCase().includes(keyword);
-            const matchStatus = statusVal === 'all' ? true : (statusVal === 'critical' ? (h.status === 'critical' || h.status === 'warning') : true);
+            const matchStatus = statusVal === 'all' ? true : (statusVal === 'critical' ? (h.status === 'critical' || h.status === 'warning' || h.status === 'persistent') : (statusVal === 'persistent' ? h.status === 'persistent' : true));
             return matchKeyword && matchStatus;
         });
         document.getElementById('pc-status-tbody').innerHTML = this.buildPcStatusRows(filtered);
@@ -50,7 +51,78 @@ const controlViews = {
         document.getElementById('log-tbody').innerHTML = this.buildLogRows(filtered);
     },
     renderFlagHistory() {
-        return `<div class="max-w-[1400px] mx-auto"><div class="flex justify-between items-end mb-4"><div><h2 class="text-lg font-bold text-slate-800 tracking-tight">시스템 수신 이력 상세 (로그)</h2><p class="text-xs text-slate-500 mt-1">에이전트 통신 상태 변경 및 시스템 자동 조치 내역을 시간순으로 추적합니다.</p></div><div class="flex items-center space-x-2"><div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i><input type="text" id="search-input" onkeyup="controlViews.filterLogs()" placeholder="로그 메시지, 고객사 검색" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:border-teal-500 outline-none w-64 font-medium"></div><button class="border border-slate-300 bg-white px-3 py-1.5 rounded text-xs font-bold text-slate-600 hover:bg-slate-50 shadow-sm"><i class="fa-solid fa-download mr-1.5"></i>엑셀(CSV) 다운로드</button></div></div><div class="bg-white border border-slate-200 rounded shadow-sm overflow-hidden"><div class="overflow-y-auto max-h-[650px] relative"><table class="w-full text-left whitespace-nowrap"><thead class="bg-slate-50 text-[12px] text-slate-500 border-b border-slate-200 sticky top-0 z-10"><tr><th class="px-4 py-3 font-bold w-44">발생 일시 (역순)</th><th class="px-4 py-3 font-bold w-24 text-center">심각도</th><th class="px-4 py-3 font-bold w-56">발생 위치 (고객사명)</th><th class="px-4 py-3 font-bold">이벤트 상세 내역</th></tr></thead><tbody id="log-tbody" class="text-xs text-slate-700 divide-y divide-slate-100">${this.buildLogRows(DB.getLogs())}</tbody></table></div></div></div>`;
+        const counts = DB.getFlagCounts();
+        const flags = DB.getFlagMessages();
+        return `<div class="max-w-[1400px] mx-auto">
+            <div class="grid grid-cols-6 gap-3 mb-5">
+                <div class="bg-teal-50 border border-teal-200 p-3 rounded text-center shadow-sm cursor-pointer hover:shadow-md" onclick="controlViews.filterFlags('FLAG_ACK')"><p class="text-[10px] font-bold text-teal-700 mb-1">정상 수신</p><p class="text-lg font-bold text-teal-800">${counts.FLAG_ACK}</p></div>
+                <div class="bg-yellow-50 border border-yellow-200 p-3 rounded text-center shadow-sm cursor-pointer hover:shadow-md" onclick="controlViews.filterFlags('LATENCY_WARN')"><p class="text-[10px] font-bold text-yellow-700 mb-1">1회 미수신 (지연)</p><p class="text-lg font-bold text-yellow-800">${counts.LATENCY_WARN}</p></div>
+                <div class="bg-red-50 border border-red-200 p-3 rounded text-center shadow-sm cursor-pointer hover:shadow-md" onclick="controlViews.filterFlags('TIMEOUT')"><p class="text-[10px] font-bold text-red-700 mb-1">2회+ 미수신 (장애)</p><p class="text-lg font-bold text-red-800">${counts.TIMEOUT}</p></div>
+                <div class="bg-blue-50 border border-blue-200 p-3 rounded text-center shadow-sm cursor-pointer hover:shadow-md" onclick="controlViews.filterFlags('REBOOT_CMD')"><p class="text-[10px] font-bold text-blue-700 mb-1">재구동 명령 전송</p><p class="text-lg font-bold text-blue-800">${counts.REBOOT_CMD}</p></div>
+                <div class="bg-green-50 border border-green-200 p-3 rounded text-center shadow-sm cursor-pointer hover:shadow-md" onclick="controlViews.filterFlags('REBOOT_OK')"><p class="text-[10px] font-bold text-green-700 mb-1">재구동 성공</p><p class="text-lg font-bold text-green-800">${counts.REBOOT_OK}</p></div>
+                <div class="bg-purple-50 border border-purple-200 p-3 rounded text-center shadow-sm cursor-pointer hover:shadow-md" onclick="controlViews.filterFlags('REBOOT_FAIL')"><p class="text-[10px] font-bold text-purple-700 mb-1">재구동 실패</p><p class="text-lg font-bold text-purple-800">${counts.REBOOT_FAIL}</p></div>
+            </div>
+            <div class="flex justify-between items-end mb-4"><h2 class="text-lg font-bold text-slate-800">Flag 메시지 수신 이력</h2>
+                <div class="flex items-center space-x-2">
+                    <div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i><input type="text" id="flag-search" onkeyup="controlViews.filterFlags()" placeholder="고객사명, Flag 코드 검색" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:border-teal-500 outline-none w-56 font-medium"></div>
+                    <select id="flag-type-filter" onchange="controlViews.filterFlags()" class="border border-slate-300 rounded text-xs px-2 py-1.5 outline-none focus:border-teal-500 font-medium"><option value="all">전체 유형</option><option value="FLAG_ACK">FLAG_ACK</option><option value="LATENCY_WARN">LATENCY_WARN</option><option value="TIMEOUT">TIMEOUT</option><option value="REBOOT_CMD">REBOOT_CMD</option><option value="REBOOT_OK">REBOOT_OK</option><option value="REBOOT_FAIL">REBOOT_FAIL</option></select>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded shadow-sm overflow-hidden"><div class="overflow-y-auto max-h-[550px]"><table class="w-full text-left whitespace-nowrap"><thead class="bg-slate-50 text-[12px] text-slate-500 border-b border-slate-200 sticky top-0 z-10"><tr><th class="px-4 py-3 font-bold">수신 시간</th><th class="px-4 py-3 font-bold text-center">Flag 유형</th><th class="px-4 py-3 font-bold">고객사 (단말)</th><th class="px-4 py-3 font-bold">상세 내용</th><th class="px-4 py-3 font-bold text-center">지연시간</th></tr></thead>
+            <tbody id="flag-tbody" class="text-xs text-slate-700 divide-y divide-slate-100">${this.buildFlagRows(flags.slice(0,200))}</tbody></table></div></div>
+        </div>`;
+    },
+
+    buildFlagRows(data) {
+        if(!data.length) return `<tr><td colspan="5" class="text-center py-10 text-slate-500 font-bold">결과 없음</td></tr>`;
+        const sm = { normal:'text-teal-600 bg-teal-50 border-teal-100', warning:'text-yellow-600 bg-yellow-50 border-yellow-100', critical:'text-red-600 bg-red-50 border-red-100', system:'text-blue-600 bg-blue-50 border-blue-100', success:'text-green-600 bg-green-50 border-green-100', error:'text-purple-600 bg-purple-50 border-purple-100' };
+        return data.map(f => `<tr class="hover:bg-slate-50"><td class="px-4 py-3 text-slate-500 font-mono text-[11px]">${f.time}</td><td class="px-4 py-3 text-center"><span class="${sm[f.severity]||sm.normal} font-bold px-2 py-0.5 rounded border text-[10px]">${f.code}</span></td><td class="px-4 py-3"><span onclick="app.openMonitoringModal('${f.hostName}')" class="cursor-pointer text-teal-700 hover:underline font-bold text-[12px]">${f.hostName}</span><span class="text-[10px] text-slate-400 font-mono ml-1">(${f.hostId})</span></td><td class="px-4 py-3 text-slate-600 text-[11px]">${f.detail}</td><td class="px-4 py-3 text-center font-mono text-[11px] text-slate-500">${f.latency}</td></tr>`).join('');
+    },
+
+    filterFlags(typeOverride) {
+        const keyword = document.getElementById('flag-search') ? document.getElementById('flag-search').value : '';
+        const typeEl = document.getElementById('flag-type-filter');
+        if (typeOverride && typeOverride !== 'all' && typeEl) typeEl.value = typeOverride;
+        const code = typeEl ? typeEl.value : 'all';
+        const data = DB.getFlagMessages({ code, keyword });
+        document.getElementById('flag-tbody').innerHTML = this.buildFlagRows(data.slice(0, 200));
+    },
+
+    // ─── [신규] 재구동 이력 관리 ───
+    renderRebootView() {
+        const stats = DB.getRebootStats();
+        const history = DB.getRebootHistory();
+        return `<div class="max-w-[1400px] mx-auto">
+            <div class="grid grid-cols-4 gap-4 mb-5">
+                <div class="bg-white border border-slate-200 p-4 rounded shadow-sm"><p class="text-[11px] font-bold text-slate-500 mb-1">총 재구동 시도</p><h3 class="text-2xl font-bold text-slate-800">${stats.total}<span class="text-sm text-slate-400 ml-1">회</span></h3></div>
+                <div class="bg-green-50 border border-green-200 p-4 rounded shadow-sm"><p class="text-[11px] font-bold text-green-700 mb-1">성공</p><h3 class="text-2xl font-bold text-green-700">${stats.success}<span class="text-sm text-green-500 ml-1">회 (${stats.successRate}%)</span></h3></div>
+                <div class="bg-red-50 border border-red-200 p-4 rounded shadow-sm"><p class="text-[11px] font-bold text-red-700 mb-1">실패</p><h3 class="text-2xl font-bold text-red-700">${stats.fail}<span class="text-sm text-red-400 ml-1">회</span></h3></div>
+                <div class="bg-purple-50 border border-purple-200 p-4 rounded shadow-sm"><p class="text-[11px] font-bold text-purple-700 mb-1">지속 장애 (3회 실패)</p><h3 class="text-2xl font-bold text-purple-700">${stats.persistentHosts}<span class="text-sm text-purple-400 ml-1">대</span></h3></div>
+            </div>
+            <div class="flex justify-between items-end mb-4"><h2 class="text-lg font-bold text-slate-800">Agent 재구동 시도 이력</h2>
+                <div class="flex items-center space-x-2">
+                    <div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i><input type="text" id="reboot-search" onkeyup="controlViews.filterReboots()" placeholder="고객사명, 단말ID 검색" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:border-teal-500 outline-none w-56 font-medium"></div>
+                    <select id="reboot-result-filter" onchange="controlViews.filterReboots()" class="border border-slate-300 rounded text-xs px-2 py-1.5 outline-none focus:border-teal-500 font-medium"><option value="all">전체 결과</option><option value="success">성공만</option><option value="fail">실패만</option></select>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded shadow-sm overflow-hidden"><div class="overflow-y-auto max-h-[550px]"><table class="w-full text-left whitespace-nowrap"><thead class="bg-slate-50 text-[12px] text-slate-500 border-b border-slate-200 sticky top-0 z-10"><tr><th class="px-4 py-3 font-bold">시도 시간</th><th class="px-4 py-3 font-bold">고객사 (단말)</th><th class="px-4 py-3 font-bold text-center">시도 횟수</th><th class="px-4 py-3 font-bold text-center">결과</th><th class="px-4 py-3 font-bold">후속 조치</th></tr></thead>
+            <tbody id="reboot-tbody" class="text-xs text-slate-700 divide-y divide-slate-100">${this.buildRebootRows(history)}</tbody></table></div></div>
+        </div>`;
+    },
+
+    buildRebootRows(data) {
+        if(!data.length) return `<tr><td colspan="5" class="text-center py-10 text-slate-500 font-bold">재구동 이력 없음</td></tr>`;
+        return data.map(r => {
+            const resCls = r.result === 'success' ? 'text-green-600 bg-green-50 border-green-200' : 'text-red-600 bg-red-50 border-red-200';
+            return `<tr class="hover:bg-slate-50"><td class="px-4 py-3 text-slate-500 font-mono text-[11px]">${r.time}</td><td class="px-4 py-3"><span onclick="app.openMonitoringModal('${r.hostName}')" class="cursor-pointer text-teal-700 hover:underline font-bold text-[12px]">${r.hostName}</span><span class="text-[10px] text-slate-400 font-mono ml-1">(${r.hostId})</span>${r.isVip?'<span class="text-[9px] bg-blue-100 text-blue-600 px-1 py-0.5 rounded ml-1">VIP</span>':''}</td><td class="px-4 py-3 text-center font-bold">${r.attempt} / ${r.maxAttempts}회</td><td class="px-4 py-3 text-center"><span class="${resCls} font-bold px-2 py-0.5 rounded border text-[11px]">${r.resultLabel}</span></td><td class="px-4 py-3 text-[11px] ${r.result==='fail'?'text-red-600 font-bold':'text-slate-600'}">${r.nextAction}</td></tr>`;
+        }).join('');
+    },
+
+    filterReboots() {
+        const keyword = document.getElementById('reboot-search') ? document.getElementById('reboot-search').value : '';
+        const result = document.getElementById('reboot-result-filter') ? document.getElementById('reboot-result-filter').value : 'all';
+        const data = DB.getRebootHistory({ keyword, result });
+        document.getElementById('reboot-tbody').innerHTML = this.buildRebootRows(data);
     },
 
     changeVipStatus(id, selectElement) {
