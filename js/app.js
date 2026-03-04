@@ -4,6 +4,63 @@ const app = {
     c360Charts: [], 
     
 
+    _sessionTimer: null,
+    SESSION_DURATION: 30 * 60 * 1000, // 30분
+
+    doLogin() {
+        const id = document.getElementById('login-id').value.trim();
+        const pw = document.getElementById('login-pw').value;
+        const errEl = document.getElementById('login-error');
+        const btn = document.getElementById('login-btn');
+
+        if (id === DB.AUTH.id && pw === DB.AUTH.pw) {
+            errEl.classList.add('hidden');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>접속 중...`;
+            btn.disabled = true;
+            sessionStorage.setItem('cms_login', Date.now().toString());
+            setTimeout(() => {
+                document.getElementById('login-screen').style.display = 'none';
+                this.init();
+                this._startSessionTimer();
+            }, 600);
+        } else {
+            errEl.classList.remove('hidden');
+            document.getElementById('login-pw').value = '';
+            document.getElementById('login-pw').focus();
+        }
+    },
+
+    checkSession() {
+        const loginTime = sessionStorage.getItem('cms_login');
+        if (loginTime && (Date.now() - parseInt(loginTime)) < this.SESSION_DURATION) {
+            document.getElementById('login-screen').style.display = 'none';
+            this.init();
+            this._startSessionTimer();
+        } else {
+            sessionStorage.removeItem('cms_login');
+            document.getElementById('login-id').focus();
+        }
+    },
+
+    _startSessionTimer() {
+        if (this._sessionTimer) clearTimeout(this._sessionTimer);
+        const loginTime = parseInt(sessionStorage.getItem('cms_login') || Date.now());
+        const remaining = this.SESSION_DURATION - (Date.now() - loginTime);
+        this._sessionTimer = setTimeout(() => this.doLogout(), Math.max(remaining, 0));
+    },
+
+    doLogout() {
+        if (this._sessionTimer) clearTimeout(this._sessionTimer);
+        sessionStorage.removeItem('cms_login');
+        document.getElementById('login-screen').style.display = '';
+        document.getElementById('login-id').value = '';
+        document.getElementById('login-pw').value = '';
+        document.getElementById('login-error').classList.add('hidden');
+        document.getElementById('login-btn').innerHTML = '로그인';
+        document.getElementById('login-btn').disabled = false;
+        document.getElementById('login-id').focus();
+    },
+
     init() {
         DB.init(); 
         this.injectCustomer360Panel(); 
@@ -518,4 +575,4 @@ const app = {
     }
 };
 
-window.onload = () => app.init();
+window.onload = () => app.checkSession();
