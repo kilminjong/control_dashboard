@@ -1,23 +1,129 @@
 const app = {
     state: { normalThreshold: 5, warningThreshold: 10, errorThreshold: 30, autoRecovery: true },
     chartInstances: [],
-    c360Charts: [],
+    c360Charts: [], 
     
-    hosts: [],
-    logs: [],
-    reports: [],
 
     init() {
-        this.generateData(); 
-        this.injectCustomer360Panel(); // 데이터 활용용 우측 패널
-        this.injectMonitoringModal();  // 시스템 관제용 중앙 모달 (신규)
+        DB.init(); 
+        this.injectCustomer360Panel(); 
+        this.injectMonitoringModal();  
+        this.injectProposalModal();
         const firstMenu = document.querySelector('[data-menu]');
         this.loadView('dashboard', firstMenu);
     },
 
-    // ---------------------------------------------------------
-    // [신규] 시스템 관제용 약식 상세화면(모달창) HTML 주입
-    // ---------------------------------------------------------
+    injectProposalModal() {
+        const modalHtml = `
+        <div id="proposal-modal-overlay" onclick="app.closeProposalModal()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center">
+            <div id="proposal-modal-content" class="bg-white w-[650px] rounded-xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col" onclick="event.stopPropagation()">
+                <div class="p-5 bg-teal-700 text-white flex justify-between items-center">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center border border-teal-500 shadow-sm">
+                            <i class="fa-solid fa-paper-plane text-xl text-teal-100"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold tracking-tight">마케팅 및 영업 제안 발송</h3>
+                            <p class="text-xs text-teal-100 mt-0.5">수집된 데이터를 기반으로 타겟 고객사에게 맞춤형 제안서를 전송합니다.</p>
+                        </div>
+                    </div>
+                    <button onclick="app.closeProposalModal()" class="text-teal-200 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                <div class="p-6 bg-slate-50 flex-1">
+                    <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm mb-5">
+                        <div class="grid grid-cols-2 gap-4 mb-5">
+                            <div>
+                                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">수신 고객사 (Target)</p>
+                                <p class="text-[15px] font-bold text-slate-800" id="prop-company">기업명</p>
+                            </div>
+                            <div>
+                                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">제안 유형 (Type)</p>
+                                <p class="text-[13px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded inline-block border border-blue-200" id="prop-type">유형</p>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">발송 채널 다중 선택</p>
+                            <div class="flex space-x-5 bg-slate-50 p-3 rounded border border-slate-100">
+                                <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked class="rounded text-teal-600 focus:ring-teal-500 w-4 h-4"><span class="text-sm font-bold text-slate-700"><i class="fa-regular fa-envelope text-slate-400 mr-1.5"></i>담당자 이메일</span></label>
+                                <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked class="rounded text-teal-600 focus:ring-teal-500 w-4 h-4"><span class="text-sm font-bold text-slate-700"><i class="fa-solid fa-mobile-screen text-slate-400 mr-1.5"></i>대표번호 SMS</span></label>
+                                <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" class="rounded text-teal-600 focus:ring-teal-500 w-4 h-4"><span class="text-sm font-bold text-slate-700"><i class="fa-brands fa-line text-yellow-500 mr-1.5"></i>카카오 알림톡</span></label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="flex justify-between items-end mb-2">
+                            <p class="text-[12px] font-bold text-slate-600"><i class="fa-solid fa-robot text-teal-600 mr-1.5"></i>AI 제안 메시지 템플릿 (수정 가능)</p>
+                            <button class="text-[10px] text-teal-600 font-bold hover:underline"><i class="fa-solid fa-arrows-rotate mr-1"></i>내용 자동 재생성</button>
+                        </div>
+                        <textarea id="prop-message" class="w-full h-36 p-4 border border-slate-300 rounded-lg text-[13px] leading-relaxed text-slate-700 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 bg-white resize-none shadow-inner"></textarea>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-200 bg-white flex justify-end space-x-2">
+                    <button onclick="app.closeProposalModal()" class="px-5 py-2.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition">취소</button>
+                    <button id="prop-send-btn" onclick="app.sendProposal()" class="px-6 py-2.5 bg-teal-600 rounded-lg text-sm font-bold text-white hover:bg-teal-700 transition shadow-md flex items-center">
+                        <i class="fa-solid fa-paper-plane mr-2"></i>고객사로 즉시 발송
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    },
+
+    openProposalModal(company, type) {
+        document.getElementById('prop-company').innerText = company;
+        document.getElementById('prop-type').innerText = type;
+        
+        let msg = '';
+        if (type.includes('대출') || type.includes('여신')) {
+            msg = `[하나은행] ${company} 대표님,\n\n최근 귀사의 안정적인 매출 성장 및 우수한 결제 이력을 바탕으로, 하나은행에서 특별 '기업 우대 여신(대출) 한도'를 추가 산정하였습니다.\n\n다음 달 예정된 결제 자금 소요 등 필요하신 시기에 최저 금리로 자금을 활용하실 수 있도록 안내해 드립니다. 담당 영업점 지점장이 금일 중 유선으로 연락드리겠습니다.\n\n감사합니다.`;
+        } else if (type.includes('예금') || type.includes('예적금')) {
+            msg = `[하나은행] ${company} 재무담당자님,\n\n최근 타행 정기예금 만기 도래 일정이 확인되어, 당행에서 VIP 고객사를 위해 준비한 [특별 금리 우대 기업예금] 특판 상품을 선제적으로 제안 드립니다.\n\n현재 시장 금리 대비 최고 0.5%p 우대 혜택을 제공해 드릴 수 있으니, 첨부된 제안서를 확인해 보시기 바랍니다.`;
+        } else if (type.includes('카드')) {
+            msg = `[하나은행] ${company} 관리담당자님,\n\n당행의 기업 비용 분석 시스템(CRM) 결과, 귀사의 월간 주유 및 교통비 지출 비중이 높은 것으로 파악되었습니다.\n\n이에 하나은행 'Biz 주유 특화 법인카드'로 전환하실 경우, 연간 최소 350만 원 이상의 비용 절감이 예상되어 맞춤형 카드를 제안해 드립니다.`;
+        } else {
+            msg = `[하나은행] ${company} 담당자님,\n\n하나은행 통합CMS 관제센터입니다. 귀사의 안정적인 금융 업무를 위한 맞춤형 혜택을 안내해 드립니다.`;
+        }
+        
+        document.getElementById('prop-message').value = msg;
+        
+        const overlay = document.getElementById('proposal-modal-overlay');
+        const content = document.getElementById('proposal-modal-content');
+        overlay.classList.remove('hidden');
+        setTimeout(() => { overlay.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+    },
+
+    closeProposalModal() {
+        const overlay = document.getElementById('proposal-modal-overlay');
+        const content = document.getElementById('proposal-modal-content');
+        overlay.classList.add('opacity-0');
+        content.classList.add('scale-95');
+        setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+    },
+
+    sendProposal() {
+        const btn = document.getElementById('prop-send-btn');
+        const origText = btn.innerHTML;
+        
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>발송 처리 중...`;
+        btn.classList.replace('bg-teal-600', 'bg-slate-500');
+        btn.disabled = true;
+
+        setTimeout(() => {
+            btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i>발송 완료!`;
+            btn.classList.replace('bg-slate-500', 'bg-blue-600');
+            
+            setTimeout(() => {
+                this.closeProposalModal();
+                setTimeout(() => {
+                    btn.innerHTML = origText;
+                    btn.classList.replace('bg-blue-600', 'bg-teal-600');
+                    btn.disabled = false;
+                }, 300);
+            }, 1500);
+        }, 1200);
+    },
+
     injectMonitoringModal() {
         const modalHtml = `
         <div id="monitoring-modal-overlay" onclick="app.closeMonitoringModal()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center">
@@ -73,10 +179,8 @@ const app = {
     },
 
     openMonitoringModal(companyName) {
-        // 데이터 찾기
-        const hostData = this.hosts.find(h => h.name === companyName || h.name.includes(companyName)) || this.hosts[0];
+        const hostData = DB.getHostByName(companyName) || DB.getHosts()[0];
         
-        // 데이터 바인딩
         document.getElementById('mon-modal-name').innerText = hostData.name;
         document.getElementById('mon-modal-id').innerText = "통합 ID: " + hostData.id;
         document.getElementById('mon-modal-ip').innerText = hostData.ip;
@@ -93,7 +197,6 @@ const app = {
         let vipHtml = hostData.isVip ? `<span class="bg-blue-600 text-white px-2.5 py-1 rounded text-xs font-bold shadow-sm">VIP 고객사</span>` : `<span class="bg-slate-100 border border-slate-200 text-slate-500 px-2.5 py-1 rounded text-xs font-bold">일반 고객사</span>`;
         document.getElementById('mon-modal-vip').innerHTML = vipHtml;
 
-        // 모달 띄우기
         const overlay = document.getElementById('monitoring-modal-overlay');
         const content = document.getElementById('monitoring-modal-content');
         overlay.classList.remove('hidden');
@@ -108,9 +211,6 @@ const app = {
         setTimeout(() => { overlay.classList.add('hidden'); }, 300);
     },
 
-    // ---------------------------------------------------------
-    // 데이터 활용용 고객사 360 우측 패널 주입 (기존과 동일)
-    // ---------------------------------------------------------
     injectCustomer360Panel() {
         const panelHtml = `
         <div id="c360-overlay" onclick="app.closeCustomer360()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] hidden opacity-0 transition-opacity duration-300"></div>
@@ -132,7 +232,7 @@ const app = {
             <div class="flex-1 overflow-y-auto p-6 space-y-5">
                 <div class="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-5 text-white shadow-md relative overflow-hidden border border-slate-600">
                     <div class="flex items-center mb-3 relative z-10"><i class="fa-solid fa-wand-magic-sparkles text-teal-400 mr-2 text-lg"></i><span class="font-bold text-[14px]">AI 기반 영업/마케팅 추천 액션</span></div>
-                    <p class="text-[13px] leading-relaxed relative z-10 text-slate-200" id="c360-ai-text">분석 데이터를 불러오는 중...</p>
+                    <p class="text-[13px] leading-relaxed relative z-10 text-slate-200" id="c360-ai-text"></p>
                     <div class="mt-4 flex space-x-2 relative z-10" id="c360-ai-buttons"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-5">
@@ -179,7 +279,7 @@ const app = {
 
     openCustomer360(companyName) {
         document.getElementById('c360-name').innerText = companyName;
-        const hostData = this.hosts.find(h => h.name.includes(companyName)) || { id: "AGT-" + (Math.floor(Math.random()*8999)+1000), isVip: Math.random() > 0.5 };
+        const hostData = DB.getHostByName(companyName) || { id: "AGT-" + (Math.floor(Math.random()*8999)+1000), isVip: Math.random() > 0.5 };
         document.getElementById('c360-id').innerText = "통합 ID: " + hostData.id;
         
         const vipBadge = document.getElementById('c360-vip-badge');
@@ -190,15 +290,15 @@ const app = {
             const rand = Math.random(); let color = 'bg-teal-400';
             if(rand < 0.03) { color = 'bg-red-500'; errorDays++; }
             else if(rand < 0.1) color = 'bg-yellow-400';
-            heatmapHtml += `<div class="w-[12px] h-[12px] ${color} rounded-[2px] opacity-80 hover:opacity-100 cursor-pointer shadow-sm" title="D-${60-i}일"></div>`;
+            heatmapHtml += `<div class="w-[15px] h-[15px] ${color} rounded-[2px] opacity-80 hover:opacity-100 cursor-pointer shadow-sm" title="D-${60-i}일"></div>`;
         }
         document.getElementById('c360-heatmap').innerHTML = heatmapHtml;
         document.getElementById('c360-uptime').innerText = ((60 - errorDays) / 60 * 100).toFixed(1) + '%';
 
         const scenarios = [
-            { txt: `타행(A은행) <strong>전자어음 및 B2B 매입 비중이 75%</strong>로 매우 높습니다. 다음 달 총 5억 원의 결제성 자금이 필요할 것으로 예측되므로 당행의 <strong>[기업 단기 운전자금 대출]</strong> 선제적 제안을 강력히 권장합니다.`, btns: `<button class="bg-teal-500 text-white px-3 py-1.5 rounded text-[11px] font-bold shadow-sm hover:bg-teal-400 transition"><i class="fa-solid fa-paper-plane mr-1"></i>영업점 리드 전송</button><button class="bg-slate-600 text-white px-3 py-1.5 rounded text-[11px] font-bold shadow-sm hover:bg-slate-500 transition">대출 한도 조회</button>` },
-            { txt: `최근 3개월간 타행 법인카드 결제액 중 <strong>주유/교통비 지출이 월 평균 3,500만 원</strong> 발생했습니다. 기업 비용 절감을 위한 <strong>당행 [하나 주유특화 비즈니스 카드]</strong> 전환 영업이 즉시 가능합니다.`, btns: `<button class="bg-blue-500 text-white px-3 py-1.5 rounded text-[11px] font-bold shadow-sm hover:bg-blue-400 transition"><i class="fa-regular fa-credit-card mr-1"></i>맞춤 카드 제안서 발송</button>` },
-            { txt: `당월 자동 수집된 <strong>타행 정기예금(15억 원)의 만기가 10일 남았습니다.</strong> 이탈 방지 및 당행 유치를 위해 지점장 승인 전결의 <strong>[특별 금리 우대 예금]</strong> 혜택 부여가 필요합니다.`, btns: `<button class="bg-yellow-500 text-slate-900 px-3 py-1.5 rounded text-[11px] font-bold shadow-sm hover:bg-yellow-400 transition"><i class="fa-solid fa-phone mr-1"></i>영업점 즉시 콜</button>` }
+            { txt: `타행(A은행) <strong>전자어음 및 B2B 매입 비중이 75%</strong>로 매우 높습니다. 다음 달 총 5억 원의 결제성 자금이 필요할 것으로 예측되므로 당행의 <strong>[기업 단기 운전자금 대출]</strong> 선제적 제안을 강력히 권장합니다.`, btns: `<button onclick="app.openProposalModal('${companyName}', '기업 단기 운전자금 대출 제안')" class="bg-teal-500 text-white px-3 py-1.5 rounded text-[11px] font-bold shadow-sm hover:bg-teal-400 transition"><i class="fa-solid fa-paper-plane mr-1"></i>즉시 제안 발송</button>` },
+            { txt: `최근 3개월간 타행 법인카드 결제액 중 <strong>주유/교통비 지출이 월 평균 3,500만 원</strong> 발생했습니다. 기업 비용 절감을 위한 <strong>당행 [하나 주유특화 비즈니스 카드]</strong> 전환 영업이 즉시 가능합니다.`, btns: `<button onclick="app.openProposalModal('${companyName}', '주유 특화 법인카드 제안')" class="bg-blue-500 text-white px-3 py-1.5 rounded text-[11px] font-bold shadow-sm hover:bg-blue-400 transition"><i class="fa-regular fa-credit-card mr-1"></i>맞춤 카드 제안 발송</button>` },
+            { txt: `당월 자동 수집된 <strong>타행 정기예금(15억 원)의 만기가 10일 남았습니다.</strong> 이탈 방지 및 당행 유치를 위해 지점장 승인 전결의 <strong>[특별 금리 우대 예금]</strong> 혜택 부여가 필요합니다.`, btns: `<button onclick="app.openProposalModal('${companyName}', '특별 금리 우대 예금 제안')" class="bg-yellow-500 text-slate-900 px-3 py-1.5 rounded text-[11px] font-bold shadow-sm hover:bg-yellow-400 transition"><i class="fa-solid fa-paper-plane mr-1"></i>즉시 제안 발송</button>` }
         ];
         const selectedScenario = scenarios[Math.floor(Math.random() * scenarios.length)];
         document.getElementById('c360-ai-text').innerHTML = selectedScenario.txt;
@@ -234,35 +334,6 @@ const app = {
         setTimeout(() => { overlay.classList.add('hidden'); }, 300);
     },
 
-    generateData() {
-        const companies = ['미래건설산업(주)', '(주)글로벌네트웍스', '제일유통', '하나시스템(주)', '태양물산', '한국정밀', '대보건설', '현대유통', '스마트솔루션즈', '다우테크', '씨제이대한', '에스케이망'];
-        const osList = ['Windows 10 Pro', 'Windows 11', 'Windows Server 2019', 'Windows Server 2022'];
-        
-        for(let i=1; i<=300; i++) {
-            const isCritical = (i === 1 || i === 85 || i === 210);
-            const isWarning = (!isCritical && i % 25 === 0);
-            const status = isCritical ? 'critical' : (isWarning ? 'warning' : 'normal');
-            this.hosts.push({ id: `AGT-${1000 + i}`, name: companies[i % companies.length] + (i > 15 ? ` ${i}지점` : ''), ip: `192.168.${(i % 255)}.${(i * 3) % 255}`, os: osList[i % osList.length], status: status, lastPing: status === 'critical' ? '14:20:00' : (status === 'warning' ? '14:45:00' : '14:56:55'), elapsed: status === 'critical' ? '37분 경과' : (status === 'warning' ? '12분 경과' : '1분 이내'), isVip: i % 8 === 0, terminals: Math.floor(Math.random() * 200) + 10, errorCount: isCritical ? 3 : (isWarning ? 1 : 0) });
-        }
-
-        for(let i=1; i<=300; i++) {
-            const rand = Math.random();
-            let type, message, color;
-            const host = this.hosts[i % this.hosts.length];
-            if(rand < 0.05) { type = 'CRITICAL'; color = 'text-red-600 bg-red-50 border-red-100'; message = `Flag 수신 지연 임계치 초과. 상태가 [장애]로 강제 전환됨.`; } 
-            else if(rand < 0.1) { type = 'SYSTEM'; color = 'text-blue-600 bg-blue-50 border-blue-100'; message = `Watcher 자동 복구 서비스 개입. 강제 재시작 명령 전송 및 복구 완료.`; } 
-            else if(rand < 0.2) { type = 'WARNING'; color = 'text-yellow-600 bg-yellow-50 border-yellow-100'; message = `Flag 수신 지연 감지. 1차 모니터링 경고 발송됨.`; } 
-            else { type = 'INFO'; color = 'text-slate-500 bg-slate-100 border-slate-200'; message = `정상 Ping 응답 수신 (지연시간: ${Math.floor(Math.random() * 50) + 10}ms)`; }
-            const date = new Date(new Date().getTime() - (i * 1000 * 60 * 15));
-            const timeStr = `${date.toISOString().split('T')[0]} ${date.toTimeString().split(' ')[0]}`;
-            this.logs.push({ time: timeStr, type: type, color: color, host: `${host.name} (${host.id})`, msg: message });
-        }
-
-        this.reports = [
-            { id: 'RPT-001', type: 'weekly', typeName: '주간', title: '2월 4주차 시스템 운영 주간보고서', dateRange: '2026-02-23 ~ 2026-03-01', group: 'all', groupName: '전체 고객사', created: '2026.03.02', format: 'pdf' },
-            { id: 'RPT-002', type: 'monthly', typeName: '월간', title: '2월 VIP 고객사 관제 현황 월간보고서', dateRange: '2026-02-01 ~ 2026-02-28', group: 'vip', groupName: 'VIP 고객사', created: '2026.03.01', format: 'excel' }
-        ];
-    },
 
     clearCharts() {
         this.chartInstances.forEach(chart => chart.destroy());
@@ -272,15 +343,12 @@ const app = {
     loadView(viewName, menuElement = null) {
         const container = document.getElementById('app-view');
         const pageTitle = document.getElementById('page-title');
-        
         if (menuElement) {
             document.querySelectorAll('[data-menu]').forEach(el => el.classList.remove('active'));
             menuElement.classList.add('active');
             if(pageTitle) pageTitle.innerText = menuElement.innerText;
         }
-
         this.clearCharts(); 
-
         const views = {
             'dashboard': { render: () => dashboardView.render(), init: () => dashboardView.initCharts() },
             'pcStatus': { render: () => controlViews.renderPcStatus() },
@@ -293,7 +361,6 @@ const app = {
             'cardView': { render: () => dataViews.renderCard(), init: () => dataViews.initCardChart() },
             'taxView': { render: () => dataViews.renderTax() }
         };
-
         if(views[viewName]) {
             container.innerHTML = views[viewName].render();
             if(views[viewName].init) setTimeout(() => views[viewName].init(), 50); 

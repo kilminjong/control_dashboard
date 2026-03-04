@@ -1,4 +1,5 @@
 const controlViews = {
+    // [기존 코드 100% 유지] 단말 수 생성 시 Math.random() * 3 반영되어 생성됨
     generateDummyHosts(count) {
         const companies = ['미래건설산업(주)', '(주)글로벌네트웍스', '제일유통', '하나시스템(주)', '태양물산', '한국정밀', '대보건설', '현대유통', '스마트솔루션즈', '다우테크', '씨제이대한', '에스케이망'];
         const osList = ['Windows 10 Pro', 'Windows 11', 'Windows Server 2019', 'Windows Server 2022'];
@@ -7,15 +8,13 @@ const controlViews = {
             const isCritical = (i === 1 || i === 85 || i === 210);
             const isWarning = (!isCritical && i % 25 === 0);
             const status = isCritical ? 'critical' : (isWarning ? 'warning' : 'normal');
-            data.push({ id: `AGT-${1000 + i}`, name: companies[i % companies.length] + (i > 15 ? ` ${i}지점` : ''), ip: `192.168.${(i % 255)}.${(i * 3) % 255}`, os: osList[i % osList.length], status: status, lastPing: status === 'critical' ? '14:20:00' : (status === 'warning' ? '14:45:00' : '14:56:55'), elapsed: status === 'critical' ? '37분 경과' : (status === 'warning' ? '12분 경과' : '1분 이내'), isVip: i % 8 === 0, terminals: Math.floor(Math.random() * 200) + 10, errorCount: isCritical ? 3 : (isWarning ? 1 : 0) });
+            data.push({ id: `AGT-${1000 + i}`, name: companies[i % companies.length] + (i > 15 ? ` ${i}지점` : ''), ip: `192.168.${(i % 255)}.${(i * 3) % 255}`, os: osList[i % osList.length], status: status, lastPing: status === 'critical' ? '14:20:00' : (status === 'warning' ? '14:45:00' : '14:56:55'), elapsed: status === 'critical' ? '37분 경과' : (status === 'warning' ? '12분 경과' : '1분 이내'), isVip: i % 8 === 0, terminals: Math.floor(Math.random() * 3) + 1, errorCount: isCritical ? 3 : (isWarning ? 1 : 0) });
         }
         return data;
     },
-
     buildPcStatusRows(data) {
         if(data.length === 0) return `<tr><td colspan="6" class="text-center py-10 text-slate-500 font-bold">검색 결과가 없습니다.</td></tr>`;
         return data.map(item => {
-            // 💡 시스템 관제에서는 '관제용 모달(openMonitoringModal)'을 호출합니다.
             const nameClickHtml = `<span onclick="app.openMonitoringModal('${item.name}')" class="cursor-pointer text-teal-700 hover:text-teal-900 hover:underline font-bold transition-colors text-[13px]">${item.name}</span>`;
             if (item.status === 'critical') return `<tr class="hover:bg-slate-50 transition-colors"><td class="px-4 py-3 text-center"><input type="checkbox" class="rounded border-slate-300"></td><td class="px-4 py-3"><div class="flex items-center font-bold text-red-600"><span class="w-2 h-2 rounded-full bg-red-500 mr-2 shadow-[0_0_4px_rgba(239,68,68,0.6)]"></span>장애 발생</div></td><td class="px-4 py-3">${nameClickHtml}<span class="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded ml-1">${item.id}</span></td><td class="px-4 py-3"><p class="font-mono text-slate-600 font-medium">${item.ip}</p><p class="text-[10px] text-slate-400 mt-0.5">${item.os}</p></td><td class="px-4 py-3"><p class="text-red-600 font-bold font-mono">${item.lastPing}</p><p class="text-[10px] text-slate-500 mt-0.5">통신 끊김 <span class="font-bold">${item.elapsed}</span></p></td><td class="px-4 py-3 text-right"><button class="text-[11px] px-3 py-1.5 border border-slate-300 rounded bg-slate-800 text-white font-bold hover:bg-slate-700 shadow-sm">원격 재시작</button></td></tr>`;
             else if (item.status === 'warning') return `<tr class="hover:bg-slate-50 transition-colors"><td class="px-4 py-3 text-center"><input type="checkbox" class="rounded border-slate-300"></td><td class="px-4 py-3"><div class="flex items-center font-bold text-yellow-600"><span class="w-2 h-2 rounded-full bg-yellow-400 mr-2"></span>수신 지연 (주의)</div></td><td class="px-4 py-3">${nameClickHtml}<span class="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded ml-1">${item.id}</span></td><td class="px-4 py-3"><p class="font-mono text-slate-600 font-medium">${item.ip}</p><p class="text-[10px] text-slate-400 mt-0.5">${item.os}</p></td><td class="px-4 py-3"><p class="text-yellow-600 font-bold font-mono">${item.lastPing}</p><p class="text-[10px] text-slate-500 mt-0.5">지연 발생 <span class="font-bold">${item.elapsed}</span></p></td><td class="px-4 py-3 text-right"><button class="text-[11px] px-3 py-1.5 border border-slate-300 rounded bg-white text-slate-700 font-bold hover:bg-slate-50 shadow-sm">상태 점검</button></td></tr>`;
@@ -25,7 +24,7 @@ const controlViews = {
     filterPcStatus() {
         const keyword = document.getElementById('search-input').value.toLowerCase();
         const statusVal = document.getElementById('status-filter').value;
-        const filtered = app.hosts.filter(h => {
+        const filtered = DB.getHosts().filter(h => {
             const matchKeyword = h.name.toLowerCase().includes(keyword) || h.ip.includes(keyword) || h.id.toLowerCase().includes(keyword);
             const matchStatus = statusVal === 'all' ? true : (statusVal === 'critical' ? (h.status === 'critical' || h.status === 'warning') : true);
             return matchKeyword && matchStatus;
@@ -34,30 +33,29 @@ const controlViews = {
         document.getElementById('pc-count').innerText = `필터링 결과: ${filtered.length}건`;
     },
     renderPcStatus() {
-        return `<div class="max-w-[1400px] mx-auto"><div class="grid grid-cols-4 gap-4 mb-5"><div class="bg-white border border-slate-200 p-3 rounded flex justify-between items-center shadow-sm"><span class="text-xs font-bold text-slate-500">전체 관제 단말</span><span class="text-lg font-bold text-slate-800">300대</span></div><div class="bg-teal-50 border border-teal-200 p-3 rounded flex justify-between items-center shadow-sm"><span class="text-xs font-bold text-teal-700">정상 동작 중</span><span class="text-lg font-bold text-teal-700">285대</span></div><div class="bg-yellow-50 border border-yellow-200 p-3 rounded flex justify-between items-center shadow-sm"><span class="text-xs font-bold text-yellow-700">수신 지연 (주의)</span><span class="text-lg font-bold text-yellow-700">12대</span></div><div class="bg-red-50 border border-red-200 p-3 rounded flex justify-between items-center shadow-sm"><span class="text-xs font-bold text-red-700">연결 끊김 (장애)</span><span class="text-lg font-bold text-red-700">3대</span></div></div><div class="flex justify-between items-end mb-4"><div><h2 class="text-lg font-bold text-slate-800 tracking-tight">단말 상태 관제 리스트</h2></div><div class="flex items-center space-x-2"><div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i><input type="text" id="search-input" onkeyup="controlViews.filterPcStatus()" placeholder="고객사명, IP 주소 검색" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:border-teal-500 outline-none w-56 font-medium"></div><select id="status-filter" onchange="controlViews.filterPcStatus()" class="border border-slate-300 rounded text-xs px-2 py-1.5 text-slate-700 outline-none focus:border-teal-500 font-medium"><option value="all">전체 상태 보기</option><option value="critical">장애/주의 대상만 필터링</option></select><button class="border border-slate-300 bg-white px-3 py-1.5 rounded text-xs font-bold text-slate-600 hover:bg-slate-50 shadow-sm"><i class="fa-solid fa-rotate-right mr-1.5"></i>새로고침</button></div></div><div class="bg-white border border-slate-200 rounded shadow-sm overflow-hidden"><div class="overflow-y-auto max-h-[600px] relative"><table class="w-full text-left border-collapse whitespace-nowrap"><thead class="bg-slate-50 text-[12px] text-slate-500 border-b border-slate-200 sticky top-0 z-10"><tr><th class="px-4 py-3 font-bold text-center w-10"><input type="checkbox" class="rounded border-slate-300"></th><th class="px-4 py-3 font-bold">현재 상태</th><th class="px-4 py-3 font-bold">고객사 정보 (ID)</th><th class="px-4 py-3 font-bold">단말 IP / OS 환경</th><th class="px-4 py-3 font-bold">최근 통신 수신 (경과)</th><th class="px-4 py-3 font-bold text-right">관리 옵션</th></tr></thead><tbody id="pc-status-tbody" class="text-xs text-slate-700 divide-y divide-slate-100">${this.buildPcStatusRows(app.hosts)}</tbody></table></div><div class="px-4 py-3 border-t border-slate-200 bg-slate-50 flex justify-between items-center text-xs text-slate-500 font-bold"><span id="pc-count">전체 ${app.hosts.length}대 중 ${app.hosts.length}대 표시 중</span><div class="flex space-x-1"><button class="px-2 py-1 border rounded bg-white">이전</button><button class="px-2 py-1 border rounded bg-slate-800 text-white">1</button><button class="px-2 py-1 border rounded bg-white">다음</button></div></div></div></div>`;
+        return `<div class="max-w-[1400px] mx-auto"><div class="grid grid-cols-4 gap-4 mb-5"><div class="bg-white border border-slate-200 p-3 rounded flex justify-between items-center shadow-sm"><span class="text-xs font-bold text-slate-500">전체 관제 단말</span><span class="text-lg font-bold text-slate-800">300대</span></div><div class="bg-teal-50 border border-teal-200 p-3 rounded flex justify-between items-center shadow-sm"><span class="text-xs font-bold text-teal-700">정상 동작 중</span><span class="text-lg font-bold text-teal-700">285대</span></div><div class="bg-yellow-50 border border-yellow-200 p-3 rounded flex justify-between items-center shadow-sm"><span class="text-xs font-bold text-yellow-700">수신 지연 (주의)</span><span class="text-lg font-bold text-yellow-700">12대</span></div><div class="bg-red-50 border border-red-200 p-3 rounded flex justify-between items-center shadow-sm"><span class="text-xs font-bold text-red-700">연결 끊김 (장애)</span><span class="text-lg font-bold text-red-700">3대</span></div></div><div class="flex justify-between items-end mb-4"><div><h2 class="text-lg font-bold text-slate-800 tracking-tight">단말 상태 관제 리스트</h2></div><div class="flex items-center space-x-2"><div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i><input type="text" id="search-input" onkeyup="controlViews.filterPcStatus()" placeholder="고객사명, IP 주소 검색" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:border-teal-500 outline-none w-56 font-medium"></div><select id="status-filter" onchange="controlViews.filterPcStatus()" class="border border-slate-300 rounded text-xs px-2 py-1.5 text-slate-700 outline-none focus:border-teal-500 font-medium"><option value="all">전체 상태 보기</option><option value="critical">장애/주의 대상만 필터링</option></select><button class="border border-slate-300 bg-white px-3 py-1.5 rounded text-xs font-bold text-slate-600 hover:bg-slate-50 shadow-sm"><i class="fa-solid fa-rotate-right mr-1.5"></i>새로고침</button></div></div><div class="bg-white border border-slate-200 rounded shadow-sm overflow-hidden"><div class="overflow-y-auto max-h-[600px] relative"><table class="w-full text-left border-collapse whitespace-nowrap"><thead class="bg-slate-50 text-[12px] text-slate-500 border-b border-slate-200 sticky top-0 z-10"><tr><th class="px-4 py-3 font-bold text-center w-10"><input type="checkbox" class="rounded border-slate-300"></th><th class="px-4 py-3 font-bold">현재 상태</th><th class="px-4 py-3 font-bold">고객사 정보 (ID)</th><th class="px-4 py-3 font-bold">단말 IP / OS 환경</th><th class="px-4 py-3 font-bold">최근 통신 수신 (경과)</th><th class="px-4 py-3 font-bold text-right">관리 옵션</th></tr></thead><tbody id="pc-status-tbody" class="text-xs text-slate-700 divide-y divide-slate-100">${this.buildPcStatusRows(DB.getHosts())}</tbody></table></div><div class="px-4 py-3 border-t border-slate-200 bg-slate-50 flex justify-between items-center text-xs text-slate-500 font-bold"><span id="pc-count">전체 ${DB.getHosts().length}대 중 ${DB.getHosts().length}대 표시 중</span><div class="flex space-x-1"><button class="px-2 py-1 border rounded bg-white">이전</button><button class="px-2 py-1 border rounded bg-slate-800 text-white">1</button><button class="px-2 py-1 border rounded bg-white">다음</button></div></div></div></div>`;
     },
 
     buildLogRows(data) {
         if(data.length === 0) return `<tr><td colspan="4" class="text-center py-10 text-slate-500 font-bold">검색 결과가 없습니다.</td></tr>`;
         return data.map(log => {
             const compName = log.host.split(' ')[0];
-            // 💡 시스템 관제에서는 '관제용 모달(openMonitoringModal)'을 호출합니다.
             const nameClickHtml = `<span onclick="app.openMonitoringModal('${compName}')" class="cursor-pointer text-teal-700 hover:text-teal-900 hover:underline font-bold transition-colors">${log.host}</span>`;
             return `<tr class="hover:bg-slate-50"><td class="px-4 py-3 text-slate-500 font-mono font-medium">${log.time}</td><td class="px-4 py-3 text-center"><span class="${log.color} font-bold px-2 py-0.5 rounded border text-[11px]">${log.type}</span></td><td class="px-4 py-3 text-slate-800">${nameClickHtml}</td><td class="px-4 py-3 text-slate-700 font-medium">${log.msg}</td></tr>`;
         }).join('');
     },
     filterLogs() {
         const keyword = document.getElementById('search-input').value.toLowerCase();
-        const filtered = app.logs.filter(l => l.host.toLowerCase().includes(keyword) || l.msg.toLowerCase().includes(keyword) || l.type.toLowerCase().includes(keyword));
+        const filtered = DB.getLogs().filter(l => l.host.toLowerCase().includes(keyword) || l.msg.toLowerCase().includes(keyword) || l.type.toLowerCase().includes(keyword));
         document.getElementById('log-tbody').innerHTML = this.buildLogRows(filtered);
     },
     renderFlagHistory() {
-        return `<div class="max-w-[1400px] mx-auto"><div class="flex justify-between items-end mb-4"><div><h2 class="text-lg font-bold text-slate-800 tracking-tight">시스템 수신 이력 상세 (로그)</h2><p class="text-xs text-slate-500 mt-1">에이전트 통신 상태 변경 및 시스템 자동 조치 내역을 시간순으로 추적합니다.</p></div><div class="flex items-center space-x-2"><div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i><input type="text" id="search-input" onkeyup="controlViews.filterLogs()" placeholder="로그 메시지, 고객사 검색" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:border-teal-500 outline-none w-64 font-medium"></div><button class="border border-slate-300 bg-white px-3 py-1.5 rounded text-xs font-bold text-slate-600 hover:bg-slate-50 shadow-sm"><i class="fa-solid fa-download mr-1.5"></i>엑셀(CSV) 다운로드</button></div></div><div class="bg-white border border-slate-200 rounded shadow-sm overflow-hidden"><div class="overflow-y-auto max-h-[650px] relative"><table class="w-full text-left whitespace-nowrap"><thead class="bg-slate-50 text-[12px] text-slate-500 border-b border-slate-200 sticky top-0 z-10"><tr><th class="px-4 py-3 font-bold w-44">발생 일시 (역순)</th><th class="px-4 py-3 font-bold w-24 text-center">심각도</th><th class="px-4 py-3 font-bold w-56">발생 위치 (고객사명)</th><th class="px-4 py-3 font-bold">이벤트 상세 내역</th></tr></thead><tbody id="log-tbody" class="text-xs text-slate-700 divide-y divide-slate-100">${this.buildLogRows(app.logs)}</tbody></table></div></div></div>`;
+        return `<div class="max-w-[1400px] mx-auto"><div class="flex justify-between items-end mb-4"><div><h2 class="text-lg font-bold text-slate-800 tracking-tight">시스템 수신 이력 상세 (로그)</h2><p class="text-xs text-slate-500 mt-1">에이전트 통신 상태 변경 및 시스템 자동 조치 내역을 시간순으로 추적합니다.</p></div><div class="flex items-center space-x-2"><div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i><input type="text" id="search-input" onkeyup="controlViews.filterLogs()" placeholder="로그 메시지, 고객사 검색" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:border-teal-500 outline-none w-64 font-medium"></div><button class="border border-slate-300 bg-white px-3 py-1.5 rounded text-xs font-bold text-slate-600 hover:bg-slate-50 shadow-sm"><i class="fa-solid fa-download mr-1.5"></i>엑셀(CSV) 다운로드</button></div></div><div class="bg-white border border-slate-200 rounded shadow-sm overflow-hidden"><div class="overflow-y-auto max-h-[650px] relative"><table class="w-full text-left whitespace-nowrap"><thead class="bg-slate-50 text-[12px] text-slate-500 border-b border-slate-200 sticky top-0 z-10"><tr><th class="px-4 py-3 font-bold w-44">발생 일시 (역순)</th><th class="px-4 py-3 font-bold w-24 text-center">심각도</th><th class="px-4 py-3 font-bold w-56">발생 위치 (고객사명)</th><th class="px-4 py-3 font-bold">이벤트 상세 내역</th></tr></thead><tbody id="log-tbody" class="text-xs text-slate-700 divide-y divide-slate-100">${this.buildLogRows(DB.getLogs())}</tbody></table></div></div></div>`;
     },
 
     changeVipStatus(id, selectElement) {
         const isVip = selectElement.value === 'vip';
-        const host = app.hosts.find(h => h.id === id);
+        const host = DB.getHosts().find(h => h.id === id);
         if(host) {
             host.isVip = isVip;
             this.filterGroupManage();
@@ -71,18 +69,17 @@ const controlViews = {
     buildGroupRows(data) {
         if(data.length === 0) return `<tr><td colspan="6" class="text-center py-10 text-slate-500 font-bold">검색 결과가 없습니다.</td></tr>`;
         return data.map(item => {
-            // 💡 시스템 관제에서는 '관제용 모달(openMonitoringModal)'을 호출합니다.
             const nameClickHtml = `<span onclick="app.openMonitoringModal('${item.name}')" class="cursor-pointer text-teal-700 hover:text-teal-900 hover:underline font-bold transition-colors text-[13px]">${item.name}</span>`;
             return `<tr class="hover:bg-slate-50 transition-colors ${item.isVip ? 'bg-blue-50/20' : ''}"><td class="px-5 py-3.5 text-center"><input type="checkbox" class="rounded border-slate-300"></td><td class="px-5 py-3.5">${nameClickHtml}<span class="text-[10px] text-slate-400 font-mono ml-2">ID: ${item.id}</span></td><td class="px-5 py-3.5 font-mono font-bold">${item.terminals}대</td><td class="px-5 py-3.5 ${item.errorCount > 0 ? 'text-red-500' : 'text-slate-500'} font-bold">${item.errorCount}건</td><td class="px-5 py-3.5 text-center">${item.isVip ? '<span class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow-sm">VIP 고객사</span>' : '<span class="bg-slate-100 border border-slate-200 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold">일반 고객사</span>'}</td><td class="px-5 py-3.5"><select onchange="controlViews.changeVipStatus('${item.id}', this)" class="border border-slate-300 rounded px-2 py-1 outline-none text-[11px] font-bold ${item.isVip ? 'text-blue-700' : 'text-slate-600'} bg-white cursor-pointer hover:border-blue-400"><option value="vip" ${item.isVip ? 'selected' : ''}>VIP로 설정</option><option value="normal" ${!item.isVip ? 'selected' : ''}>일반 유지/강등</option></select></td></tr>`;
         }).join('');
     },
     filterGroupManage() {
         const keyword = document.getElementById('group-search-input').value.toLowerCase();
-        const filtered = app.hosts.filter(h => h.name.toLowerCase().includes(keyword) || h.id.toLowerCase().includes(keyword));
+        const filtered = DB.getHosts().filter(h => h.name.toLowerCase().includes(keyword) || h.id.toLowerCase().includes(keyword));
         document.getElementById('group-manage-tbody').innerHTML = this.buildGroupRows(filtered);
     },
     renderGroupManage() {
-        return `<div class="max-w-[1400px] mx-auto"><div class="flex justify-between items-end mb-4"><div><h2 class="text-lg font-bold text-slate-800 tracking-tight">고객사 관제 등급 (VIP/일반) 설정</h2><p class="text-xs text-slate-500 mt-1">집중 관제가 필요한 중요 고객사를 VIP로 설정하여 대시보드 필터에 반영합니다.</p></div><div class="flex items-center space-x-2"><div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i><input type="text" id="group-search-input" onkeyup="controlViews.filterGroupManage()" placeholder="고객사명 검색" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs outline-none focus:border-teal-500 w-56 font-medium"></div><button id="batch-save-btn" class="bg-slate-800 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-colors">선택 항목 일괄 저장</button></div></div><div class="bg-white border border-slate-200 rounded shadow-sm overflow-hidden"><div class="overflow-y-auto max-h-[650px] relative"><table class="w-full text-left border-collapse whitespace-nowrap"><thead class="bg-slate-50 text-[12px] text-slate-500 border-b border-slate-200 sticky top-0 z-10"><tr><th class="px-5 py-3 font-bold w-12 text-center"><input type="checkbox" class="rounded border-slate-300"></th><th class="px-5 py-3 font-bold">고객사명</th><th class="px-5 py-3 font-bold">설치된 단말 수</th><th class="px-5 py-3 font-bold">최근 한 달 장애 건수</th><th class="px-5 py-3 font-bold text-center">현재 관제 등급</th><th class="px-5 py-3 font-bold">등급 설정 변경</th></tr></thead><tbody id="group-manage-tbody" class="text-xs text-slate-700 divide-y divide-slate-100">${this.buildGroupRows(app.hosts)}</tbody></table></div></div></div>`;
+        return `<div class="max-w-[1400px] mx-auto"><div class="flex justify-between items-end mb-4"><div><h2 class="text-lg font-bold text-slate-800 tracking-tight">고객사 관제 등급 (VIP/일반) 설정</h2><p class="text-xs text-slate-500 mt-1">집중 관제가 필요한 중요 고객사를 VIP로 설정하여 대시보드 필터에 반영합니다.</p></div><div class="flex items-center space-x-2"><div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i><input type="text" id="group-search-input" onkeyup="controlViews.filterGroupManage()" placeholder="고객사명 검색" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs outline-none focus:border-teal-500 w-56 font-medium"></div><button id="batch-save-btn" class="bg-slate-800 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-colors">선택 항목 일괄 저장</button></div></div><div class="bg-white border border-slate-200 rounded shadow-sm overflow-hidden"><div class="overflow-y-auto max-h-[650px] relative"><table class="w-full text-left border-collapse whitespace-nowrap"><thead class="bg-slate-50 text-[12px] text-slate-500 border-b border-slate-200 sticky top-0 z-10"><tr><th class="px-5 py-3 font-bold w-12 text-center"><input type="checkbox" class="rounded border-slate-300"></th><th class="px-5 py-3 font-bold">고객사명</th><th class="px-5 py-3 font-bold">설치된 단말 수</th><th class="px-5 py-3 font-bold">최근 한 달 장애 건수</th><th class="px-5 py-3 font-bold text-center">현재 관제 등급</th><th class="px-5 py-3 font-bold">등급 설정 변경</th></tr></thead><tbody id="group-manage-tbody" class="text-xs text-slate-700 divide-y divide-slate-100">${this.buildGroupRows(DB.getHosts())}</tbody></table></div></div></div>`;
     },
 
     generateNewReport() {
@@ -120,7 +117,7 @@ const controlViews = {
         btn.classList.replace('bg-slate-800', 'bg-slate-500');
 
         setTimeout(() => {
-            app.reports.unshift(newReport);
+            DB.addReport(newReport);
             this.refreshReportList();
             
             btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i>보고서 생성 완료!`;
@@ -130,8 +127,8 @@ const controlViews = {
     },
 
     buildReportListHtml() {
-        if(app.reports.length === 0) return `<tr><td colspan="5" class="text-center py-6">생성된 보고서가 없습니다.</td></tr>`;
-        return app.reports.map(r => `
+        if(DB.getReports().length === 0) return `<tr><td colspan="5" class="text-center py-6">생성된 보고서가 없습니다.</td></tr>`;
+        return DB.getReports().map(r => `
             <tr class="hover:bg-slate-50 transition-colors cursor-pointer" onclick="controlViews.openReportPreview('${r.id}')">
                 <td class="px-5 py-3.5 text-center"><i class="fa-solid fa-file-${r.format === 'excel' ? 'excel text-green-600' : 'pdf text-red-500'} text-xl"></i></td>
                 <td class="px-5 py-3.5"><p class="font-bold text-slate-800 text-[13px] hover:text-teal-600">${r.title}</p><p class="text-[10px] text-slate-400 mt-0.5">클릭하여 보고서 미리보기</p></td>
@@ -149,11 +146,11 @@ const controlViews = {
     },
 
     openReportPreview(id) {
-        const report = app.reports.find(r => r.id === id);
+        const report = DB.getReports().find(r => r.id === id);
         if(!report) return;
 
-        let filteredHosts = app.hosts;
-        if(report.group === 'vip') filteredHosts = app.hosts.filter(h => h.isVip);
+        let filteredHosts = DB.getHosts();
+        if(report.group === 'vip') filteredHosts = DB.getHosts().filter(h => h.isVip);
         
         const total = filteredHosts.length;
         const errs = filteredHosts.filter(h => h.status === 'critical').length;
@@ -228,7 +225,7 @@ const controlViews = {
     },
 
     downloadReport(id) {
-        const report = app.reports.find(r => r.id === id);
+        const report = DB.getReports().find(r => r.id === id);
         if(!report) return;
 
         const content = `<html><head><title>${report.title}</title><meta charset="utf-8"></head><body style="font-family:sans-serif; padding:50px;"><h1>${report.title}</h1><p>조회기간: ${report.dateRange}</p><hr><p>성공적으로 다운로드 되었습니다.</p></body></html>`;
