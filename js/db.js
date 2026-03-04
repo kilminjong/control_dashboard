@@ -20,6 +20,9 @@ const DB = {
     _cardMonthly: [],
     _depositDetail: [],
     _cashFlow: [],
+    _proposals: [],
+    _campaigns: [],
+    _segments: [],
 
     // ── 상수 ──
     COMPANIES: ['미래건설산업(주)','(주)글로벌네트웍스','제일유통','하나시스템(주)','태양물산','한국정밀','대보건설','현대유통','스마트솔루션즈','다우테크','씨제이대한','에스케이망'],
@@ -52,6 +55,9 @@ const DB = {
         this._genCardMonthly();
         this._genDepositDetail();
         this._genCashFlow();
+        this._genProposals();
+        this._genCampaigns();
+        this._genSegments();
         console.log('[DB] 초기화 완료 — hosts:', this._hosts.length, '/ flags:', this._flagMessages.length, '/ reboots:', this._rebootHistory.length);
     },
 
@@ -277,8 +283,56 @@ const DB = {
         });
     },
 
+    // ─── 영업 제안 이력 ───
+    _genProposals() {
+        const types = ['기업 운전자금 대출 제안','고금리 예적금 유치 제안','주유 특화 법인카드 제안','여신 한도 상향 제안','맞춤형 예금 금리 패키지','자금흐름 맞춤 여신 제안','종합 금융 패키지 제안'];
+        const channels = ['이메일','SMS','카카오 알림톡'];
+        const statuses = [{s:'sent',l:'발송완료',w:25},{s:'read',l:'열람확인',w:30},{s:'responded',l:'회신접수',w:15},{s:'accepted',l:'승인(계약)',w:10},{s:'rejected',l:'거절',w:10},{s:'expired',l:'만료',w:10}];
+        for (let i = 0; i < 80; i++) {
+            const daysAgo = this._rand(0, 60);
+            const d = new Date(Date.now() - daysAgo * 86400000);
+            const timeStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(this._rand(8,18)).padStart(2,'0')}:${String(this._rand(0,59)).padStart(2,'0')}`;
+            const r = Math.random()*100; let cum=0, status=statuses[0];
+            for(const st of statuses){cum+=st.w;if(r<cum){status=st;break;}}
+            const comp = this.COMPANIES[i % this.COMPANIES.length] + (i > 14 ? ` ${i}지점` : '');
+            const ch = [channels[this._rand(0,2)]]; if(Math.random()>0.5) ch.push(channels[this._rand(0,2)]);
+            this._proposals.push({ id:'PRP-'+String(1000+i), company:comp, type:this._pick(types), channels:[...new Set(ch)], status:status.s, statusLabel:status.l, sentAt:timeStr, rm:'RM'+this._rand(100,999), amount:this._rand(1,50)*100000000 });
+        }
+        this._proposals.sort((a,b) => b.sentAt.localeCompare(a.sentAt));
+    },
+    _genCampaigns() {
+        this._campaigns = [
+            { id:'CMP-001', name:'Q1 만기 예적금 대량 유치', type:'예적금 유치', status:'active', statusLabel:'진행 중', targetCount:45, sentCount:38, responseCount:12, acceptCount:5, startDate:'2026-01-15', endDate:'2026-03-31', desc:'Q1 타행 예적금 만기 도래 고객 대상 특별금리 유치 캠페인' },
+            { id:'CMP-002', name:'B2B 고액 만기 여신 제안', type:'대출/여신', status:'active', statusLabel:'진행 중', targetCount:28, sentCount:22, responseCount:8, acceptCount:3, startDate:'2026-02-01', endDate:'2026-04-30', desc:'B2B/전자어음 만기 30일 이내 고액 거래 고객 대상 여신 제안' },
+            { id:'CMP-003', name:'타행카드 전환 집중 프로모션', type:'법인카드', status:'active', statusLabel:'진행 중', targetCount:60, sentCount:55, responseCount:18, acceptCount:7, startDate:'2026-02-15', endDate:'2026-05-15', desc:'주유/교통비 고비중 타행 카드 사용 고객 전환 캠페인' },
+            { id:'CMP-004', name:'매출 우량 기업 VIP 여신 확대', type:'대출/여신', status:'scheduled', statusLabel:'예정', targetCount:20, sentCount:0, responseCount:0, acceptCount:0, startDate:'2026-04-01', endDate:'2026-06-30', desc:'세금계산서 매출 우량 기업 대상 여신 한도 상향 캠페인' },
+            { id:'CMP-005', name:'2025 하반기 종합 금융 패키지', type:'종합 패키지', status:'completed', statusLabel:'완료', targetCount:80, sentCount:76, responseCount:32, acceptCount:15, startDate:'2025-07-01', endDate:'2025-12-31', desc:'2025 하반기 전 고객사 대상 종합 금융 상품 패키지 제안' },
+            { id:'CMP-006', name:'자금흐름 적자 기업 긴급 여신', type:'대출/여신', status:'completed', statusLabel:'완료', targetCount:15, sentCount:15, responseCount:9, acceptCount:6, startDate:'2025-10-01', endDate:'2026-01-31', desc:'자금흐름 분석 기반 적자 빈도 높은 기업 선제적 여신 제안' }
+        ];
+    },
+    _genSegments() {
+        const segDefs = [
+            { id:'SEG-VIP', name:'VIP 핵심 고객', color:'#0d9488', icon:'fa-crown', desc:'대출+예금+카드 3개 이상 거래, 연매출 100억 이상', criteria:'복합거래 3종+ & 매출 100억+' },
+            { id:'SEG-GROW', name:'성장 잠재 고객', color:'#3b82f6', icon:'fa-arrow-trend-up', desc:'매출 증가 추세, 당행 점유율 확대 가능', criteria:'최근 3개월 매출 증가 & 당행점유 50% 미만' },
+            { id:'SEG-RISK', name:'이탈 위험 고객', color:'#ef4444', icon:'fa-triangle-exclamation', desc:'타행 거래 비중 증가, 예적금 만기 미갱신 위험', criteria:'타행비중 60%+ & D-30 만기 보유' },
+            { id:'SEG-CARD', name:'카드 전환 타겟', color:'#8b5cf6', icon:'fa-credit-card', desc:'타행 법인카드 고액 사용, 당행 카드 미보유', criteria:'타행 카드 월 500만+ & 당행 카드 없음' },
+            { id:'SEG-LOAN', name:'여신 확대 타겟', color:'#f59e0b', icon:'fa-hand-holding-dollar', desc:'매출 우량 + B2B 만기 도래, 여신 수요 높음', criteria:'매출 우량 & B2B만기 D-30 보유' },
+            { id:'SEG-NEW', name:'신규 유치 대상', color:'#64748b', icon:'fa-user-plus', desc:'CMS 연동만 된 상태, 금융 거래 미개시', criteria:'CMS 연동 완료 & 금융거래 0건' }
+        ];
+        segDefs.forEach(seg => {
+            const count = this._rand(8, 45);
+            const members = [];
+            for(let i=0; i<count; i++) {
+                const comp = this.COMPANIES[i % this.COMPANIES.length] + (i > 8 ? ` ${this._rand(1,99)}지점` : '');
+                members.push({ name:comp, score:this._rand(30,99), revenue:this._rand(10,500)*100000000, hanaRatio:this._rand(10,80) });
+            }
+            members.sort((a,b)=>b.score-a.score);
+            this._segments.push({ ...seg, count, members, avgScore:Math.round(members.reduce((s,m)=>s+m.score,0)/count) });
+        });
+    },
+
     // ═══════════════════════════════════════
-    //  쿼리 메서드 (기존 코드에서 호출)
+    //  쿼리 메서드
     // ═══════════════════════════════════════
 
     // -- 호스트 --
@@ -489,6 +543,28 @@ const DB = {
     getTodayErrors() {
         return this._hosts.filter(h => h.status === 'critical' || h.status === 'persistent');
     },
+
+    // -- 제안 이력 --
+    getProposals(filter) {
+        let data = [...this._proposals];
+        if(filter) {
+            if(filter.status && filter.status!=='all') data = data.filter(p=>p.status===filter.status);
+            if(filter.keyword) { const kw=filter.keyword.toLowerCase(); data=data.filter(p=>p.company.toLowerCase().includes(kw)||p.type.toLowerCase().includes(kw)||p.rm.toLowerCase().includes(kw)); }
+        }
+        return data;
+    },
+    addProposal(p) { this._proposals.unshift(p); },
+    getProposalStats() {
+        const t=this._proposals.length; const sent=this._proposals.filter(p=>p.status==='sent').length;
+        const read=this._proposals.filter(p=>p.status==='read').length; const resp=this._proposals.filter(p=>p.status==='responded').length;
+        const acc=this._proposals.filter(p=>p.status==='accepted').length; const rej=this._proposals.filter(p=>p.status==='rejected').length;
+        const totalAmt=this._proposals.filter(p=>p.status==='accepted').reduce((s,p)=>s+p.amount,0);
+        return { total:t, sent, read, responded:resp, accepted:acc, rejected:rej, expired:t-sent-read-resp-acc-rej, conversionRate:t>0?((acc/t)*100).toFixed(1):'0', totalAmount:totalAmt };
+    },
+    getCampaigns() { return this._campaigns; },
+    getCampaignById(id) { return this._campaigns.find(c=>c.id===id); },
+    getSegments() { return this._segments; },
+    getSegmentById(id) { return this._segments.find(s=>s.id===id); },
 
     // -- 데이터 활용 총괄 요약 --
     getDataOverview() {

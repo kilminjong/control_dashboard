@@ -250,12 +250,16 @@ const dataViews = {
             <div class="flex justify-between items-center mb-5">
                 <div class="flex items-center space-x-3">
                     <h2 class="text-lg font-bold text-slate-800">자금흐름 분석</h2>
+                    <select id="cf-select" onchange="document.getElementById('cf-company').value=this.value; dataViews.filterCashFlow()" class="border border-slate-300 rounded text-xs px-3 py-1.5 outline-none focus:border-teal-500 font-bold text-slate-700">
+                        <option value="">전체 고객사 합산</option>
+                        ${companies.map(c => `<option value="${c}">${c}</option>`).join('')}
+                    </select>
                     <div class="relative">
                         <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i>
-                        <input type="text" id="cf-company" list="cf-company-list" placeholder="고객사 검색 (전체 합산)" oninput="dataViews.filterCashFlow()" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:border-teal-500 outline-none w-64 font-bold text-slate-700">
+                        <input type="text" id="cf-company" list="cf-company-list" placeholder="고객사 직접 검색" oninput="dataViews.filterCashFlow()" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:border-teal-500 outline-none w-52 font-medium text-slate-700">
                         <datalist id="cf-company-list">${companies.map(c => `<option value="${c}">`).join('')}</datalist>
                     </div>
-                    <button onclick="document.getElementById('cf-company').value=''; dataViews.filterCashFlow()" class="text-[11px] border border-slate-300 px-2.5 py-1.5 rounded font-bold text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-rotate-right mr-1"></i>초기화</button>
+                    <button onclick="document.getElementById('cf-company').value=''; document.getElementById('cf-select').value=''; dataViews.filterCashFlow()" class="text-[11px] border border-slate-300 px-2.5 py-1.5 rounded font-bold text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-rotate-right mr-1"></i>초기화</button>
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-4 mb-5" id="cf-kpi">
@@ -292,6 +296,8 @@ const dataViews = {
         const input = document.getElementById('cf-company').value.trim();
         const companies = DB.getCashFlowCompanies();
         const company = companies.find(c => c === input) || '';
+        const sel = document.getElementById('cf-select');
+        if(sel && sel.value !== company) sel.value = company;
         const flows = DB.getCashFlow(company || undefined);
         const summary = DB.getCashFlowSummary(company || undefined);
         // KPI 업데이트
@@ -309,5 +315,97 @@ const dataViews = {
             this._cfChart.data.datasets[2].data = flows.map(f=>Math.round(f.net/1000000));
             this._cfChart.update();
         }
+    },
+
+    // ═══════════════════════════════════════
+    //  제안 이력 관리
+    // ═══════════════════════════════════════
+    renderProposalHistory() {
+        const st = DB.getProposalStats(); const data = DB.getProposals();
+        const sc = { sent:'bg-slate-100 text-slate-600 border-slate-200', read:'bg-blue-50 text-blue-700 border-blue-200', responded:'bg-amber-50 text-amber-700 border-amber-200', accepted:'bg-teal-50 text-teal-700 border-teal-200', rejected:'bg-red-50 text-red-600 border-red-200', expired:'bg-slate-50 text-slate-400 border-slate-200' };
+        return `<div class="max-w-[1400px] mx-auto">
+            <div class="grid grid-cols-6 gap-3 mb-5">
+                <div class="bg-white border border-slate-200 p-4 rounded shadow-sm border-l-4 border-l-slate-400"><p class="text-[10px] font-bold text-slate-500 mb-1">전체 발송</p><h3 class="text-2xl font-black text-slate-800">${st.total}<span class="text-sm ml-0.5">건</span></h3></div>
+                <div class="bg-white border border-slate-200 p-4 rounded shadow-sm border-l-4 border-l-blue-400"><p class="text-[10px] font-bold text-blue-600 mb-1">열람 확인</p><h3 class="text-2xl font-black text-blue-800">${st.read}</h3></div>
+                <div class="bg-white border border-slate-200 p-4 rounded shadow-sm border-l-4 border-l-amber-400"><p class="text-[10px] font-bold text-amber-600 mb-1">회신 접수</p><h3 class="text-2xl font-black text-amber-800">${st.responded}</h3></div>
+                <div class="bg-white border border-slate-200 p-4 rounded shadow-sm border-l-4 border-l-teal-500"><p class="text-[10px] font-bold text-teal-600 mb-1">승인(계약)</p><h3 class="text-2xl font-black text-teal-800">${st.accepted}</h3></div>
+                <div class="bg-white border border-slate-200 p-4 rounded shadow-sm border-l-4 border-l-red-400"><p class="text-[10px] font-bold text-red-600 mb-1">거절</p><h3 class="text-2xl font-black text-red-800">${st.rejected}</h3></div>
+                <div class="bg-teal-50 border border-teal-200 p-4 rounded shadow-sm border-l-4 border-l-teal-600"><p class="text-[10px] font-bold text-teal-700 mb-1">전환율</p><h3 class="text-2xl font-black text-teal-800">${st.conversionRate}<span class="text-sm ml-0.5">%</span></h3><p class="text-[10px] text-teal-600 mt-0.5">계약금 ${Math.round(st.totalAmount/100000000).toLocaleString()}억</p></div>
+            </div>
+            <div class="grid grid-cols-12 gap-4 mb-5">
+                <div class="col-span-4 bg-white border border-slate-200 rounded p-5 shadow-sm"><h3 class="font-bold text-slate-800 text-[14px] mb-4">제안 상태 분포</h3><div class="h-[220px]"><canvas id="propStatusChart"></canvas></div></div>
+                <div class="col-span-8 bg-white border border-slate-200 rounded p-5 shadow-sm"><h3 class="font-bold text-slate-800 text-[14px] mb-4">최근 30일 제안 발송 추이</h3><div class="h-[220px]"><canvas id="propTrendChart"></canvas></div></div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center"><h3 class="text-[14px] font-bold text-slate-800">제안 발송 이력</h3>
+                    <div class="flex space-x-2"><select id="prop-status-filter" onchange="dataViews.filterProposals()" class="border border-slate-300 rounded text-xs px-2 py-1.5 font-bold"><option value="all">전체 상태</option><option value="sent">발송완료</option><option value="read">열람확인</option><option value="responded">회신접수</option><option value="accepted">승인</option><option value="rejected">거절</option></select>
+                    <div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i><input type="text" id="prop-search" oninput="dataViews.filterProposals()" placeholder="고객사, 유형, RM 검색" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs w-52 outline-none focus:border-teal-500 font-medium"></div></div>
+                </div>
+                <div class="overflow-y-auto max-h-[400px]"><table class="w-full text-left whitespace-nowrap"><thead class="bg-white text-[12px] text-slate-500 border-b border-slate-200 sticky top-0 z-10"><tr><th class="px-4 py-3 font-bold">발송일</th><th class="px-4 py-3 font-bold">고객사</th><th class="px-4 py-3 font-bold">제안 유형</th><th class="px-4 py-3 font-bold">채널</th><th class="px-4 py-3 font-bold text-right">제안 금액</th><th class="px-4 py-3 font-bold text-center">RM</th><th class="px-4 py-3 font-bold text-center">상태</th></tr></thead>
+                <tbody id="prop-tbody" class="text-xs text-slate-700 divide-y divide-slate-100">${this._buildPropRows(data,sc)}</tbody></table></div>
+            </div></div>`;
+    },
+    _buildPropRows(data,sc) {
+        return data.map(p=>`<tr class="hover:bg-slate-50"><td class="px-4 py-3 font-mono text-slate-500 text-[11px]">${p.sentAt}</td><td class="px-4 py-3 font-bold text-[13px]"><span onclick="app.openCustomer360('${p.company}','general')" class="cursor-pointer text-teal-700 hover:underline">${p.company}</span></td><td class="px-4 py-3 text-[11px]">${p.type}</td><td class="px-4 py-3">${p.channels.map(c=>`<span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded mr-0.5">${c}</span>`).join('')}</td><td class="px-4 py-3 text-right font-mono font-bold">${(p.amount/100000000).toFixed(1)}억</td><td class="px-4 py-3 text-center font-mono text-[11px]">${p.rm}</td><td class="px-4 py-3 text-center"><span class="text-[10px] font-bold px-2 py-0.5 rounded border ${sc[p.status]||''}">${p.statusLabel}</span></td></tr>`).join('');
+    },
+    initProposalCharts() {
+        const st = DB.getProposalStats();
+        const c1 = new Chart(document.getElementById('propStatusChart').getContext('2d'), { type:'doughnut', data:{ labels:['발송','열람','회신','승인','거절','만료'], datasets:[{data:[st.sent,st.read,st.responded,st.accepted,st.rejected,st.expired],backgroundColor:['#94a3b8','#3b82f6','#f59e0b','#0d9488','#ef4444','#cbd5e1'],borderWidth:2,borderColor:'#fff'}] }, options:{ responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{size:9}}}} } });
+        app.chartInstances.push(c1);
+        const props = DB.getProposals(); const dayMap = {};
+        for(let i=29;i>=0;i--){ const d=new Date(Date.now()-i*86400000); dayMap[`${d.getMonth()+1}/${d.getDate()}`]=0; }
+        props.forEach(p=>{ const parts=p.sentAt.split('-'); const k=parseInt(parts[1])+'/'+parseInt(parts[2]); if(dayMap[k]!==undefined) dayMap[k]++; });
+        const c2 = new Chart(document.getElementById('propTrendChart').getContext('2d'), { type:'bar', data:{ labels:Object.keys(dayMap), datasets:[{label:'발송',data:Object.values(dayMap),backgroundColor:'rgba(13,148,136,0.6)',borderRadius:2,barThickness:6}] }, options:{ responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,grid:{borderDash:[2,2],color:'#f1f5f9'},border:{display:false},ticks:{stepSize:1,font:{size:9}}},x:{grid:{display:false},border:{display:false},ticks:{maxRotation:0,font:{size:7},maxTicksLimit:10}}},plugins:{legend:{display:false}} } });
+        app.chartInstances.push(c2);
+    },
+    filterProposals() {
+        const sc = { sent:'bg-slate-100 text-slate-600 border-slate-200', read:'bg-blue-50 text-blue-700 border-blue-200', responded:'bg-amber-50 text-amber-700 border-amber-200', accepted:'bg-teal-50 text-teal-700 border-teal-200', rejected:'bg-red-50 text-red-600 border-red-200', expired:'bg-slate-50 text-slate-400 border-slate-200' };
+        const data = DB.getProposals({ status:document.getElementById('prop-status-filter').value, keyword:document.getElementById('prop-search').value });
+        document.getElementById('prop-tbody').innerHTML = this._buildPropRows(data,sc);
+    },
+
+    // ═══════════════════════════════════════
+    //  캠페인 관리
+    // ═══════════════════════════════════════
+    renderCampaignView() {
+        const camps = DB.getCampaigns(); const active=camps.filter(c=>c.status==='active');
+        const tgt=camps.reduce((s,c)=>s+c.targetCount,0); const acc=camps.reduce((s,c)=>s+c.acceptCount,0);
+        const stCls = { active:'bg-teal-50 text-teal-700 border-teal-200', scheduled:'bg-blue-50 text-blue-700 border-blue-200', completed:'bg-slate-100 text-slate-500 border-slate-200' };
+        return `<div class="max-w-[1400px] mx-auto">
+            <div class="grid grid-cols-4 gap-4 mb-5">
+                <div class="bg-teal-50 border border-teal-200 p-4 rounded shadow-sm border-l-4 border-l-teal-500"><p class="text-[10px] font-bold text-teal-700 mb-1">진행 중</p><h3 class="text-2xl font-black text-teal-800">${active.length}<span class="text-sm ml-0.5">개</span></h3></div>
+                <div class="bg-white border border-slate-200 p-4 rounded shadow-sm"><p class="text-[10px] font-bold text-slate-500 mb-1">전체 타겟</p><h3 class="text-2xl font-black text-slate-800">${tgt}<span class="text-sm ml-0.5">개사</span></h3></div>
+                <div class="bg-blue-50 border border-blue-200 p-4 rounded shadow-sm"><p class="text-[10px] font-bold text-blue-700 mb-1">계약 전환</p><h3 class="text-2xl font-black text-blue-800">${acc}<span class="text-sm ml-0.5">건</span></h3></div>
+                <div class="bg-amber-50 border border-amber-200 p-4 rounded shadow-sm"><p class="text-[10px] font-bold text-amber-700 mb-1">평균 전환율</p><h3 class="text-2xl font-black text-amber-800">${tgt>0?((acc/tgt)*100).toFixed(1):'0'}<span class="text-sm ml-0.5">%</span></h3></div>
+            </div>
+            <div class="space-y-4">${camps.map(c=>{const prog=c.targetCount>0?Math.round((c.sentCount/c.targetCount)*100):0;const cv=c.sentCount>0?((c.acceptCount/c.sentCount)*100).toFixed(1):'0';return `<div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden"><div class="p-5 flex justify-between items-start"><div class="flex-1"><div class="flex items-center space-x-2 mb-2"><span class="text-[10px] font-bold px-2 py-0.5 rounded border ${stCls[c.status]||''}">${c.statusLabel}</span><span class="text-[10px] text-slate-400 font-mono">${c.id}</span></div><h3 class="text-[16px] font-bold text-slate-800 mb-1">${c.name}</h3><p class="text-[12px] text-slate-500 mb-3">${c.desc}</p><div class="flex space-x-6 text-[11px]"><span class="text-slate-500">기간: <b class="text-slate-700">${c.startDate} ~ ${c.endDate}</b></span><span class="text-slate-500">유형: <b class="text-slate-700">${c.type}</b></span></div></div><div class="grid grid-cols-4 gap-3 text-center ml-6"><div class="bg-slate-50 border border-slate-200 rounded p-3 min-w-[80px]"><p class="text-[9px] font-bold text-slate-400 mb-0.5">타겟</p><p class="text-lg font-black text-slate-800">${c.targetCount}</p></div><div class="bg-blue-50 border border-blue-200 rounded p-3 min-w-[80px]"><p class="text-[9px] font-bold text-blue-600 mb-0.5">발송</p><p class="text-lg font-black text-blue-800">${c.sentCount}</p></div><div class="bg-amber-50 border border-amber-200 rounded p-3 min-w-[80px]"><p class="text-[9px] font-bold text-amber-600 mb-0.5">회신</p><p class="text-lg font-black text-amber-800">${c.responseCount}</p></div><div class="bg-teal-50 border border-teal-200 rounded p-3 min-w-[80px]"><p class="text-[9px] font-bold text-teal-600 mb-0.5">계약</p><p class="text-lg font-black text-teal-800">${c.acceptCount}</p></div></div></div><div class="px-5 pb-4"><div class="flex justify-between items-center mb-1.5"><span class="text-[10px] font-bold text-slate-500">발송 진행률</span><span class="text-[10px] font-bold text-slate-700">${prog}% (${c.sentCount}/${c.targetCount})</span></div><div class="w-full bg-slate-100 rounded-full h-2"><div class="h-2 rounded-full ${c.status==='completed'?'bg-slate-400':'bg-teal-500'}" style="width:${prog}%"></div></div><div class="flex justify-between mt-2"><span class="text-[10px] text-slate-400">전환율: <b class="${parseFloat(cv)>10?'text-teal-600':'text-slate-600'}">${cv}%</b></span>${c.status==='active'?'<button class="text-[11px] font-bold text-teal-600 hover:underline"><i class="fa-solid fa-paper-plane mr-1"></i>미발송 일괄 발송</button>':''}</div></div></div>`;}).join('')}</div></div>`;
+    },
+
+    // ═══════════════════════════════════════
+    //  고객 세그먼트
+    // ═══════════════════════════════════════
+    _selectedSegment: null,
+    renderSegmentView() {
+        const segs = DB.getSegments(); const tot=segs.reduce((s,seg)=>s+seg.count,0);
+        return `<div class="max-w-[1400px] mx-auto">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="bg-white border border-slate-200 p-4 rounded shadow-sm"><p class="text-[10px] font-bold text-slate-500 mb-1">전체 세그먼트</p><h3 class="text-2xl font-black text-slate-800">${segs.length}<span class="text-sm ml-0.5">개</span></h3></div>
+                <div class="bg-white border border-slate-200 p-4 rounded shadow-sm"><p class="text-[10px] font-bold text-slate-500 mb-1">분류된 고객 총수</p><h3 class="text-2xl font-black text-slate-800">${tot}<span class="text-sm ml-0.5">개사</span></h3></div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded shadow-sm p-5 mb-5"><h3 class="font-bold text-slate-800 text-[14px] mb-4"><i class="fa-solid fa-chart-bar text-teal-600 mr-1.5"></i>세그먼트별 고객 분포</h3><div class="h-[140px]"><canvas id="segMiniChart"></canvas></div></div>
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-5 space-y-3">${segs.map(seg=>`<div class="bg-white border border-slate-200 rounded-lg shadow-sm p-4 cursor-pointer hover:border-teal-300 hover:shadow-md transition ${this._selectedSegment===seg.id?'ring-2 ring-teal-500 border-teal-400':''}" onclick="dataViews.selectSegment('${seg.id}')"><div class="flex justify-between items-start"><div class="flex items-center space-x-3"><div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:${seg.color}15;border:1px solid ${seg.color}33"><i class="fa-solid ${seg.icon}" style="color:${seg.color}"></i></div><div><h4 class="font-bold text-[14px] text-slate-800">${seg.name}</h4><p class="text-[11px] text-slate-500 mt-0.5">${seg.criteria}</p></div></div><div class="text-right"><p class="text-xl font-black text-slate-800">${seg.count}</p><p class="text-[10px] text-slate-400">개사</p></div></div><div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-100"><span class="text-[10px] text-slate-500">평균 스코어: <b class="text-slate-700">${seg.avgScore}점</b></span><button class="text-[10px] font-bold text-teal-600 hover:underline"><i class="fa-solid fa-paper-plane mr-0.5"></i>일괄 캠페인</button></div></div>`).join('')}</div>
+                <div class="col-span-7 bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden" id="seg-detail">${this._selectedSegment?this._buildSegDetail(this._selectedSegment):'<div class="flex items-center justify-center h-[400px] text-slate-400 text-sm font-bold"><i class="fa-solid fa-arrow-left mr-2"></i>좌측에서 세그먼트를 선택하세요</div>'}</div>
+            </div></div>`;
+    },
+    selectSegment(id) { this._selectedSegment=id; const el=document.getElementById('seg-detail'); if(el) el.innerHTML=this._buildSegDetail(id); },
+    _buildSegDetail(id) {
+        const seg=DB.getSegmentById(id); if(!seg) return '';
+        return `<div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center"><div><h3 class="font-bold text-[14px] text-slate-800"><i class="fa-solid ${seg.icon} mr-1.5" style="color:${seg.color}"></i>${seg.name}</h3><p class="text-[11px] text-slate-500 mt-0.5">${seg.desc}</p></div><span class="text-[12px] font-bold px-3 py-1 rounded" style="background:${seg.color}15;color:${seg.color};border:1px solid ${seg.color}33">${seg.count}개사</span></div><div class="overflow-y-auto max-h-[500px]"><table class="w-full text-left whitespace-nowrap"><thead class="bg-white text-[12px] text-slate-500 border-b sticky top-0 z-10"><tr><th class="px-4 py-3 font-bold w-8">#</th><th class="px-4 py-3 font-bold">고객사</th><th class="px-4 py-3 font-bold text-center">스코어</th><th class="px-4 py-3 font-bold text-right">추정 매출</th><th class="px-4 py-3 font-bold text-center">당행 점유</th><th class="px-4 py-3 font-bold text-center">조치</th></tr></thead><tbody class="text-xs text-slate-700 divide-y divide-slate-100">${seg.members.map((m,i)=>`<tr class="hover:bg-slate-50"><td class="px-4 py-2.5 font-bold text-slate-400">${i+1}</td><td class="px-4 py-2.5 font-bold text-[13px]"><span onclick="app.openCustomer360('${m.name}','general')" class="cursor-pointer text-teal-700 hover:underline">${m.name}</span></td><td class="px-4 py-2.5 text-center"><span class="font-mono font-bold ${m.score>=70?'text-teal-700':m.score>=50?'text-amber-700':'text-red-600'}">${m.score}</span></td><td class="px-4 py-2.5 text-right font-mono font-bold">${Math.round(m.revenue/100000000).toLocaleString()}억</td><td class="px-4 py-2.5 text-center"><div class="inline-flex items-center"><div class="w-12 bg-slate-100 rounded-full h-1.5 mr-1.5"><div class="h-1.5 rounded-full bg-teal-500" style="width:${m.hanaRatio}%"></div></div><span class="text-[10px] font-bold">${m.hanaRatio}%</span></div></td><td class="px-4 py-2.5 text-center"><button onclick="app.openProposalModal('${m.name}','세그먼트 맞춤 제안')" class="text-[10px] font-bold text-teal-600 hover:underline">제안 발송</button></td></tr>`).join('')}</tbody></table></div>`;
+    },
+    initSegmentChart() {
+        const segs=DB.getSegments(); if(!document.getElementById('segMiniChart')) return;
+        const c=new Chart(document.getElementById('segMiniChart').getContext('2d'),{type:'bar',data:{labels:segs.map(s=>s.name),datasets:[{label:'고객수',data:segs.map(s=>s.count),backgroundColor:segs.map(s=>s.color+'cc'),borderColor:segs.map(s=>s.color),borderWidth:1,borderRadius:4,barThickness:20}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',scales:{x:{beginAtZero:true,grid:{borderDash:[2,2],color:'#f1f5f9'},border:{display:false},ticks:{font:{size:10}}},y:{grid:{display:false},border:{display:false},ticks:{font:{size:11,weight:'bold'},color:'#334155'}}},plugins:{legend:{display:false}}}});
+        app.chartInstances.push(c);
     }
 };

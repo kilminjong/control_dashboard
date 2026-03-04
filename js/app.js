@@ -104,10 +104,16 @@ const app = {
     sendProposal() {
         const btn = document.getElementById('prop-send-btn');
         const origText = btn.innerHTML;
+        const company = document.getElementById('prop-company').innerText;
+        const type = document.getElementById('prop-type').innerText;
         
         btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>발송 처리 중...`;
         btn.classList.replace('bg-teal-600', 'bg-slate-500');
         btn.disabled = true;
+
+        const now = new Date();
+        const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        DB.addProposal({ id:'PRP-'+Date.now(), company, type, channels:['이메일','SMS'], status:'sent', statusLabel:'발송완료', sentAt:timeStr, rm:'RM'+Math.floor(Math.random()*900+100), amount:Math.floor(Math.random()*50+1)*100000000 });
 
         setTimeout(() => {
             btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i>발송 완료!`;
@@ -168,18 +174,66 @@ const app = {
                         </div>
                     </div>
                     <div class="flex space-x-2 mt-2">
-                        <button class="flex-1 bg-slate-800 text-white py-2 rounded text-xs font-bold hover:bg-slate-700 shadow-sm transition"><i class="fa-solid fa-rotate-right mr-1.5"></i>Agent 재구동</button>
-                        <button class="flex-1 border border-slate-300 bg-white text-slate-700 py-2 rounded text-xs font-bold hover:bg-slate-50 shadow-sm transition"><i class="fa-solid fa-list-check mr-1.5"></i>전체 로그 조회</button>
-                        <button class="flex-1 border border-teal-500 bg-teal-50 text-teal-700 py-2 rounded text-xs font-bold hover:bg-teal-100 shadow-sm transition"><i class="fa-solid fa-network-wired mr-1.5"></i>Ping 테스트</button>
+                        <button onclick="app.doAgentReboot()" id="mon-reboot-btn" class="flex-1 bg-slate-800 text-white py-2.5 rounded text-xs font-bold hover:bg-slate-700 shadow-sm transition"><i class="fa-solid fa-rotate-right mr-1.5"></i>Agent 재구동</button>
+                        <button onclick="app.doPingTest()" id="mon-ping-btn" class="flex-1 border border-teal-500 bg-teal-50 text-teal-700 py-2.5 rounded text-xs font-bold hover:bg-teal-100 shadow-sm transition"><i class="fa-solid fa-network-wired mr-1.5"></i>Ping 테스트</button>
                     </div>
+                    <div id="mon-action-result" class="mt-3 hidden"></div>
                 </div>
             </div>
         </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
+    doAgentReboot() {
+        const btn = document.getElementById('mon-reboot-btn');
+        const result = document.getElementById('mon-action-result');
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>재구동 처리 중...`;
+        btn.disabled = true; btn.classList.add('opacity-60');
+        result.className = 'mt-3 p-3 rounded border text-center bg-slate-50 border-slate-200';
+        result.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-slate-400 mr-1.5"></i><span class="text-xs font-bold text-slate-500">Watcher를 통해 Agent 재구동 명령 전송 중...</span>`;
+        result.classList.remove('hidden');
+        setTimeout(() => {
+            const success = Math.random() > 0.2;
+            if(success) {
+                result.className = 'mt-3 p-3 rounded border text-center bg-teal-50 border-teal-200';
+                result.innerHTML = `<i class="fa-solid fa-circle-check text-teal-600 mr-1.5"></i><span class="text-xs font-bold text-teal-700">Agent 재구동이 완료되었습니다.</span><p class="text-[10px] text-teal-600 mt-1">응답 시간: ${(Math.random()*2+0.5).toFixed(1)}초 | 상태: 정상 통신</p>`;
+            } else {
+                result.className = 'mt-3 p-3 rounded border text-center bg-red-50 border-red-200';
+                result.innerHTML = `<i class="fa-solid fa-circle-xmark text-red-600 mr-1.5"></i><span class="text-xs font-bold text-red-700">Agent 재구동에 실패했습니다.</span><p class="text-[10px] text-red-600 mt-1">원인: 대상 PC 응답 없음 — 현장 점검이 필요합니다.</p>`;
+            }
+            btn.innerHTML = orig; btn.disabled = false; btn.classList.remove('opacity-60');
+        }, 2000);
+    },
+
+    doPingTest() {
+        const btn = document.getElementById('mon-ping-btn');
+        const result = document.getElementById('mon-action-result');
+        const ip = document.getElementById('mon-modal-ip').innerText;
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>테스트 중...`;
+        btn.disabled = true; btn.classList.add('opacity-60');
+        result.className = 'mt-3 p-3 rounded border text-center bg-slate-50 border-slate-200';
+        result.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-slate-400 mr-1.5"></i><span class="text-xs font-bold text-slate-500">잠시만 기다려주세요... Watcher → 스케줄 PC에서 Ping 테스트 진행 중 (${ip})</span>`;
+        result.classList.remove('hidden');
+        setTimeout(() => {
+            const success = Math.random() > 0.3;
+            const ms = Math.floor(Math.random()*50+5);
+            if(success) {
+                result.className = 'mt-3 p-3 rounded border text-center bg-teal-50 border-teal-200';
+                result.innerHTML = `<i class="fa-solid fa-circle-check text-teal-600 mr-1.5"></i><span class="text-xs font-bold text-teal-700">Ping 정상입니다.</span><p class="text-[10px] text-teal-600 mt-1 font-mono">Reply from ${ip}: bytes=32 time=${ms}ms TTL=128 — 4패킷 전송, 4수신 (손실 0%)</p>`;
+            } else {
+                result.className = 'mt-3 p-3 rounded border text-center bg-red-50 border-red-200';
+                result.innerHTML = `<i class="fa-solid fa-circle-xmark text-red-600 mr-1.5"></i><span class="text-xs font-bold text-red-700">Ping이 연결되지 않습니다.</span><p class="text-[10px] text-red-600 mt-1 font-mono">Request timed out. ${ip} — 4패킷 전송, 0수신 (손실 100%)</p>`;
+            }
+            btn.innerHTML = orig; btn.disabled = false; btn.classList.remove('opacity-60');
+        }, 1800);
+    },
+
     openMonitoringModal(companyName) {
         const hostData = DB.getHostByName(companyName) || DB.getHosts()[0];
+        document.getElementById('mon-action-result').classList.add('hidden');
+        document.getElementById('mon-action-result').innerHTML = '';
         
         document.getElementById('mon-modal-name').innerText = hostData.name;
         document.getElementById('mon-modal-id').innerText = "통합 ID: " + hostData.id;
@@ -421,7 +475,10 @@ const app = {
             'b2bView': { render: () => dataViews.renderB2B() },
             'cardView': { render: () => dataViews.renderCard(), init: () => dataViews.initCardChart() },
             'taxView': { render: () => dataViews.renderTax() },
-            'cashFlow': { render: () => dataViews.renderCashFlow(), init: () => dataViews.initCashFlowChart() }
+            'cashFlow': { render: () => dataViews.renderCashFlow(), init: () => dataViews.initCashFlowChart() },
+            'proposalHistory': { render: () => dataViews.renderProposalHistory(), init: () => dataViews.initProposalCharts() },
+            'campaignView': { render: () => dataViews.renderCampaignView() },
+            'segmentView': { render: () => dataViews.renderSegmentView(), init: () => dataViews.initSegmentChart() }
         };
         if(views[viewName]) {
             // context 추적 (Customer360에서 사용)

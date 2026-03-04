@@ -50,6 +50,11 @@
             <a onclick="app.loadView('taxView', this)" class="nav-item" data-menu><i class="fa-solid fa-receipt"></i>전자세금계산서</a>
             <a onclick="app.loadView('cashFlow', this)" class="nav-item" data-menu><i class="fa-solid fa-money-bill-transfer"></i>자금흐름 분석</a>
 
+            <div class="nav-group-title">영업 자동화 (Sales Automation)</div>
+            <a onclick="app.loadView('proposalHistory', this)" class="nav-item" data-menu><i class="fa-solid fa-paper-plane"></i>제안 이력 관리</a>
+            <a onclick="app.loadView('campaignView', this)" class="nav-item" data-menu><i class="fa-solid fa-bullhorn"></i>캠페인 관리</a>
+            <a onclick="app.loadView('segmentView', this)" class="nav-item" data-menu><i class="fa-solid fa-users-viewfinder"></i>고객 세그먼트</a>
+
             <div class="nav-group-title">환경 설정 (Configuration)</div>
             <a onclick="app.loadView('settings', this)" class="nav-item" data-menu><i class="fa-solid fa-sliders"></i>모니터링 정책 설정</a>
         </nav>
@@ -75,10 +80,10 @@
         <main id="app-view" class="flex-1 overflow-x-hidden overflow-y-auto p-6 bg-[#f8fafc]"></main>
     </div>
 
-    <script src="js/db.js"></script>
-    <script src="js/dashboard.js"></script>
-    <script src="js/control.js"></script>
-    <script src="js/data.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/db.js?v=3.0"></script>
+    <script src="js/dashboard.js?v=3.0"></script>
+    <script src="js/control.js?v=3.0"></script>
+    <script src="js/data.js?v=3.0"></script>
+    <script src="js/app.js?v=3.0"></script>
 </body>
 </html>
