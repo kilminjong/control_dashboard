@@ -264,15 +264,17 @@ const DB = {
         });
     },
 
-    // ─── 일별 자금흐름 (30일) ───
+    // ─── 일별 자금흐름 (고객사별 30일) ───
     _genCashFlow() {
-        for (let i = 29; i >= 0; i--) {
-            const d = new Date(Date.now() - i * 86400000);
-            const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
-            const inflow = this._rand(80, 350) * 1000000;
-            const outflow = this._rand(60, 280) * 1000000;
-            this._cashFlow.push({ date: dateStr, inflow, outflow, net: inflow - outflow });
-        }
+        this.COMPANIES.forEach(comp => {
+            for (let i = 29; i >= 0; i--) {
+                const d = new Date(Date.now() - i * 86400000);
+                const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
+                const inflow = this._rand(20, 120) * 1000000;
+                const outflow = this._rand(15, 90) * 1000000;
+                this._cashFlow.push({ company: comp, date: dateStr, inflow, outflow, net: inflow - outflow });
+            }
+        });
     },
 
     // ═══════════════════════════════════════
@@ -410,14 +412,44 @@ const DB = {
         this._depositDetail.forEach(d => { totalDeposit += d.deposit; totalSavings += d.savings; totalAll += d.total; if(d.bank.includes('하나')) hanaShare = d.total; });
         return { totalDeposit, totalSavings, totalAll, hanaShare, hanaRatio: totalAll > 0 ? ((hanaShare/totalAll)*100).toFixed(1) : '0' };
     },
+    getAssetsByCompany() {
+        const map = {};
+        this._assets.forEach(a => {
+            if (!map[a.name]) map[a.name] = { name: a.name, items: [], totalAmt: 0, d30: 0, bankSet: new Set() };
+            map[a.name].items.push(a); map[a.name].totalAmt += a.amount;
+            if (a.dday <= 30) map[a.name].d30++;
+            map[a.name].bankSet.add(a.bank);
+        });
+        return Object.values(map).map(c => ({ ...c, banks: [...c.bankSet].join(', '), count: c.items.length })).sort((a,b) => b.totalAmt - a.totalAmt);
+    },
 
     // -- 자금흐름 --
-    getCashFlow()     { return this._cashFlow; },
-    getCashFlowSummary() {
-        const recent7 = this._cashFlow.slice(-7);
+    getCashFlow(company) {
+        if (company) return this._cashFlow.filter(c => c.company === company);
+        // 전체 합산: 날짜별로 묶기
+        const map = {};
+        this._cashFlow.forEach(c => {
+            if (!map[c.date]) map[c.date] = { date: c.date, inflow: 0, outflow: 0, net: 0 };
+            map[c.date].inflow += c.inflow; map[c.date].outflow += c.outflow; map[c.date].net += c.net;
+        });
+        return Object.values(map);
+    },
+    getCashFlowSummary(company) {
+        const data = this.getCashFlow(company).slice(-7);
         let inTotal = 0, outTotal = 0;
-        recent7.forEach(c => { inTotal += c.inflow; outTotal += c.outflow; });
-        return { inTotal, outTotal, net: inTotal - outTotal, days: recent7.length };
+        data.forEach(c => { inTotal += c.inflow; outTotal += c.outflow; });
+        return { inTotal, outTotal, net: inTotal - outTotal, days: data.length };
+    },
+    getCashFlowCompanies() {
+        return [...new Set(this._cashFlow.map(c => c.company))];
+    },
+    getCashFlowRanking() {
+        const map = {};
+        this._cashFlow.forEach(c => {
+            if (!map[c.company]) map[c.company] = { company: c.company, totalIn: 0, totalOut: 0 };
+            map[c.company].totalIn += c.inflow; map[c.company].totalOut += c.outflow;
+        });
+        return Object.values(map).map(c => ({ ...c, net: c.totalIn - c.totalOut })).sort((a,b) => b.totalIn - a.totalIn);
     },
 
     // -- B2B 분기별 집계 --
@@ -456,5 +488,23 @@ const DB = {
     // -- 금일 장애 호스트 --
     getTodayErrors() {
         return this._hosts.filter(h => h.status === 'critical' || h.status === 'persistent');
+    },
+
+    // -- 데이터 활용 총괄 요약 --
+    getDataOverview() {
+        const ts = this.getTaxSummary();
+        const ds = this.getDepositSummary();
+        const cs = this.getCashFlowSummary();
+        const b2b = this._b2b;
+        const cards = this._cards;
+        return {
+            totalCompanies: this.COMPANIES.length,
+            b2bCount: b2b.length, b2bAmount: b2b.reduce((s,d)=>s+d.amount,0), b2bTarget: b2b.filter(d=>d.status==='target').length,
+            taxSales: ts.salesAmt, taxPurchase: ts.purchaseAmt, taxPremium: ts.premium,
+            assetTotal: ds.totalAll, hanaShare: ds.hanaShare, hanaRatio: ds.hanaRatio,
+            cardTotal: cards.reduce((s,c)=>s+c.amount,0), cardCount: cards.length,
+            cashIn7d: cs.inTotal, cashOut7d: cs.outTotal, cashNet7d: cs.net,
+            d30Assets: this._assets.filter(a=>a.dday<=30).length
+        };
     }
 };
