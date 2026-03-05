@@ -111,35 +111,74 @@ const DB = {
 
     // ─── Flag 메시지 유형별 이력 ───
     _genFlagMessages() {
-        const types = [
-            { code: 'FLAG_ACK', label: '정상 수신', severity: 'normal' },
-            { code: 'LATENCY_WARN', label: '1회 미수신', severity: 'warning' },
-            { code: 'TIMEOUT', label: '2회+ 미수신', severity: 'critical' },
-            { code: 'REBOOT_CMD', label: '재구동 명령', severity: 'system' },
-            { code: 'REBOOT_OK', label: '재구동 성공', severity: 'success' },
-            { code: 'REBOOT_FAIL', label: '재구동 실패', severity: 'error' }
+        const types = {
+            ACK:    { code: 'FLAG_ACK', label: '정상 수신', severity: 'normal' },
+            WARN:   { code: 'LATENCY_WARN', label: '1회 미수신', severity: 'warning' },
+            TIMEOUT:{ code: 'TIMEOUT', label: '2회+ 미수신', severity: 'critical' },
+            CMD:    { code: 'REBOOT_CMD', label: '재구동 명령', severity: 'system' },
+            OK:     { code: 'REBOOT_OK', label: '재구동 성공', severity: 'success' },
+            FAIL:   { code: 'REBOOT_FAIL', label: '재구동 실패', severity: 'error' }
+        };
+        // 장애 시나리오: 장애→재구동명령→(성공|실패)→다음Flag(정상|장애지속)
+        const scenarios = [
+            ['ACK','ACK','ACK','WARN','TIMEOUT','CMD','OK','ACK','ACK','ACK'],           // 장애→재구동성공→정상복구
+            ['ACK','ACK','WARN','TIMEOUT','CMD','FAIL','TIMEOUT','CMD','OK','ACK'],       // 1차실패→2차성공→복구
+            ['ACK','ACK','ACK','ACK','WARN','ACK','ACK','ACK','ACK','ACK'],               // 지연1회→바로정상
+            ['ACK','ACK','ACK','ACK','ACK','ACK','ACK','ACK','ACK','ACK'],                // 완전 정상
+            ['ACK','WARN','TIMEOUT','CMD','FAIL','TIMEOUT','CMD','FAIL','TIMEOUT','CMD'], // 지속장애
+            ['ACK','ACK','ACK','WARN','TIMEOUT','CMD','OK','ACK','ACK','ACK'],            // 장애→복구
+            ['ACK','ACK','ACK','ACK','ACK','WARN','ACK','ACK','ACK','ACK'],               // 정상(지연1회)
         ];
-        for (let i = 0; i < 500; i++) {
-            const host = this._hosts[i % this._hosts.length];
-            const type = (i < 30) ? types[this._rand(1, 5)] : types[0];
-            const date = new Date(Date.now() - i * 1000 * 60 * 12);
-            this._flagMessages.push({
-                id: `FLG-${10000 + i}`,
-                time: `${date.toISOString().split('T')[0]} ${date.toTimeString().split(' ')[0]}`,
-                hostId: host.id,
-                hostName: host.name,
-                code: type.code,
-                label: type.label,
-                severity: type.severity,
-                latency: type.severity === 'normal' ? this._rand(10, 80) + 'ms' : '-',
-                detail: type.code === 'FLAG_ACK' ? `정상 Ping 응답 수신 (${this._rand(10,60)}ms)` :
-                        type.code === 'LATENCY_WARN' ? 'Flag 수신 지연 감지. 1차 경고.' :
-                        type.code === 'TIMEOUT' ? 'Flag 미수신 임계치 초과. [장애] 전환.' :
-                        type.code === 'REBOOT_CMD' ? 'Watcher 자동 복구. 재시작 명령 전송.' :
-                        type.code === 'REBOOT_OK' ? '재구동 완료. Agent 정상 확인.' :
-                        '재구동 시도 실패. 운영자 확인 필요.'
-            });
-        }
+        const interval = 60; // 기본 1시간 주기
+        // 고객사 30개에 대해 각각 시나리오 생성 (최근 72시간, 약 72건/고객)
+        const targetHosts = this._hosts.slice(0, 30);
+        let fid = 10000;
+        targetHosts.forEach((host, hi) => {
+            const scenario = scenarios[hi % scenarios.length];
+            const totalFlags = 72; // 72시간치
+            for (let i = 0; i < totalFlags; i++) {
+                const minutesAgo = (totalFlags - i) * interval;
+                const date = new Date(Date.now() - minutesAgo * 60000);
+                const scenIdx = i % scenario.length;
+                const typeKey = scenario[scenIdx];
+                const type = types[typeKey];
+                let latencyVal = '-';
+                let detail = '';
+                if (type.code === 'FLAG_ACK') {
+                    const ms = this._rand(10, 80);
+                    latencyVal = ms + 'ms';
+                    detail = `정상 Ping 응답 수신 (${ms}ms)`;
+                } else if (type.code === 'LATENCY_WARN') {
+                    const mins = this._rand(6, 9);
+                    latencyVal = mins + '분';
+                    detail = `Flag 수신 지연 감지 (${mins}분 경과). 1차 경고 발생.`;
+                } else if (type.code === 'TIMEOUT') {
+                    const mins = this._rand(31, 60);
+                    latencyVal = mins + '분';
+                    detail = `Flag 미수신 ${mins}분 경과. 임계치(30분) 초과 — [장애] 전환.`;
+                } else if (type.code === 'REBOOT_CMD') {
+                    detail = 'Watcher.dog 자동 감지. 스케줄 PC에서 Agent 재시작 명령 전송.';
+                } else if (type.code === 'REBOOT_OK') {
+                    const sec = (this._rand(5, 25) / 10).toFixed(1);
+                    detail = `재구동 완료 (${sec}초). Agent 정상 통신 확인.`;
+                } else {
+                    detail = '재구동 시도 실패. 대상 PC 응답 없음 — 운영자 현장 점검 필요.';
+                }
+                this._flagMessages.push({
+                    id: `FLG-${fid++}`,
+                    time: `${date.toISOString().split('T')[0]} ${date.toTimeString().split(' ')[0]}`,
+                    hostId: host.id,
+                    hostName: host.name,
+                    code: type.code,
+                    label: type.label,
+                    severity: type.severity,
+                    latency: latencyVal,
+                    detail: detail
+                });
+            }
+        });
+        // 시간순 정렬 (최신 먼저)
+        this._flagMessages.sort((a, b) => b.time.localeCompare(a.time));
     },
 
     // ─── 재구동 이력 ───

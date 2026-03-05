@@ -64,19 +64,21 @@ const controlViews = {
             </div>
             <div class="flex justify-between items-end mb-4"><h2 class="text-lg font-bold text-slate-800">Flag 메시지 수신 이력</h2>
                 <div class="flex items-center space-x-2">
-                    <div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i><input type="text" id="flag-search" onkeyup="controlViews.filterFlags()" placeholder="고객사명, Flag 코드 검색" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:border-teal-500 outline-none w-56 font-medium"></div>
-                    <select id="flag-type-filter" onchange="controlViews.filterFlags()" class="border border-slate-300 rounded text-xs px-2 py-1.5 outline-none focus:border-teal-500 font-medium"><option value="all">전체 유형</option><option value="FLAG_ACK">FLAG_ACK</option><option value="LATENCY_WARN">LATENCY_WARN</option><option value="TIMEOUT">TIMEOUT</option><option value="REBOOT_CMD">REBOOT_CMD</option><option value="REBOOT_OK">REBOOT_OK</option><option value="REBOOT_FAIL">REBOOT_FAIL</option></select>
+                    <div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i><input type="text" id="flag-search" onkeyup="controlViews.filterFlags()" placeholder="고객사명 검색" class="pl-7 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:border-teal-500 outline-none w-56 font-medium"></div>
+                    <select id="flag-type-filter" onchange="controlViews.filterFlags()" class="border border-slate-300 rounded text-xs px-2 py-1.5 outline-none focus:border-teal-500 font-medium"><option value="all">전체 유형</option><option value="FLAG_ACK">정상 수신</option><option value="LATENCY_WARN">수신 지연 (주의)</option><option value="TIMEOUT">미수신 (장애)</option><option value="REBOOT_CMD">재구동 명령</option><option value="REBOOT_OK">재구동 성공</option><option value="REBOOT_FAIL">재구동 실패</option></select>
                 </div>
             </div>
             <div class="bg-white border border-slate-200 rounded shadow-sm overflow-hidden"><div class="overflow-y-auto max-h-[550px]"><table class="w-full text-left whitespace-nowrap"><thead class="bg-slate-50 text-[12px] text-slate-500 border-b border-slate-200 sticky top-0 z-10"><tr><th class="px-4 py-3 font-bold">수신 시간</th><th class="px-4 py-3 font-bold text-center">Flag 유형</th><th class="px-4 py-3 font-bold">고객사 (단말)</th><th class="px-4 py-3 font-bold">상세 내용</th><th class="px-4 py-3 font-bold text-center">지연시간</th></tr></thead>
-            <tbody id="flag-tbody" class="text-xs text-slate-700 divide-y divide-slate-100">${this.buildFlagRows(flags.slice(0,200))}</tbody></table></div></div>
+            <tbody id="flag-tbody" class="text-xs text-slate-700 divide-y divide-slate-100">${this.buildFlagRows(flags.slice(0,300))}</tbody></table></div></div>
         </div>`;
     },
+
+    _fLabel: { FLAG_ACK:'정상 수신', LATENCY_WARN:'수신 지연', TIMEOUT:'미수신 (장애)', REBOOT_CMD:'재구동 명령', REBOOT_OK:'재구동 성공', REBOOT_FAIL:'재구동 실패' },
 
     buildFlagRows(data) {
         if(!data.length) return `<tr><td colspan="5" class="text-center py-10 text-slate-500 font-bold">결과 없음</td></tr>`;
         const sm = { normal:'text-teal-600 bg-teal-50 border-teal-100', warning:'text-yellow-600 bg-yellow-50 border-yellow-100', critical:'text-red-600 bg-red-50 border-red-100', system:'text-blue-600 bg-blue-50 border-blue-100', success:'text-green-600 bg-green-50 border-green-100', error:'text-purple-600 bg-purple-50 border-purple-100' };
-        return data.map(f => `<tr class="hover:bg-slate-50"><td class="px-4 py-3 text-slate-500 font-mono text-[11px]">${f.time}</td><td class="px-4 py-3 text-center"><span class="${sm[f.severity]||sm.normal} font-bold px-2 py-0.5 rounded border text-[10px]">${f.code}</span></td><td class="px-4 py-3"><span onclick="app.openMonitoringModal('${f.hostName}')" class="cursor-pointer text-teal-700 hover:underline font-bold text-[12px]">${f.hostName}</span><span class="text-[10px] text-slate-400 font-mono ml-1">(${f.hostId})</span></td><td class="px-4 py-3 text-slate-600 text-[11px]">${f.detail}</td><td class="px-4 py-3 text-center font-mono text-[11px] text-slate-500">${f.latency}</td></tr>`).join('');
+        return data.map(f => `<tr class="hover:bg-slate-50"><td class="px-4 py-3 text-slate-500 font-mono text-[11px]">${f.time}</td><td class="px-4 py-3 text-center"><span class="${sm[f.severity]||sm.normal} font-bold px-2 py-0.5 rounded border text-[10px]">${this._fLabel[f.code]||f.code}</span></td><td class="px-4 py-3"><span onclick="controlViews.openFlagDetail('${f.hostName}')" class="cursor-pointer text-teal-700 hover:underline font-bold text-[12px]">${f.hostName}</span><span class="text-[10px] text-slate-400 font-mono ml-1">(${f.hostId})</span></td><td class="px-4 py-3 text-slate-600 text-[11px]">${f.detail}</td><td class="px-4 py-3 text-center font-mono text-[11px] text-slate-500">${f.latency}</td></tr>`).join('');
     },
 
     filterFlags(typeOverride) {
@@ -85,8 +87,47 @@ const controlViews = {
         if (typeOverride && typeOverride !== 'all' && typeEl) typeEl.value = typeOverride;
         const code = typeEl ? typeEl.value : 'all';
         const data = DB.getFlagMessages({ code, keyword });
-        document.getElementById('flag-tbody').innerHTML = this.buildFlagRows(data.slice(0, 200));
+        document.getElementById('flag-tbody').innerHTML = this.buildFlagRows(data.slice(0, 300));
     },
+
+    openFlagDetail(hostName) {
+        const allFlags = DB.getFlagMessages({ keyword: hostName }).filter(f => f.hostName === hostName);
+        // 시간순 오래된것 먼저 (타임라인 위→아래 = 과거→현재)
+        const sorted = [...allFlags].sort((a,b) => a.time.localeCompare(b.time));
+        const interval = app.state.flagInterval || 60;
+        const sm = { normal:'text-teal-600 bg-teal-50 border-teal-100', warning:'text-yellow-600 bg-yellow-50 border-yellow-100', critical:'text-red-600 bg-red-50 border-red-100', system:'text-blue-600 bg-blue-50 border-blue-100', success:'text-green-600 bg-green-50 border-green-100', error:'text-purple-600 bg-purple-50 border-purple-100' };
+        const ic = { normal:'fa-circle-check text-teal-500', warning:'fa-triangle-exclamation text-yellow-500', critical:'fa-circle-xmark text-red-500', system:'fa-paper-plane text-blue-500', success:'fa-rotate-right text-green-500', error:'fa-skull-crossbones text-purple-500' };
+        const cnt = {}; sorted.forEach(f => { cnt[f.severity] = (cnt[f.severity]||0)+1; });
+        const old = document.getElementById('flag-detail-overlay'); if(old) old.remove();
+        const html = `<div id="flag-detail-overlay" onclick="controlViews.closeFlagDetail()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[130] flex items-center justify-center" style="opacity:0;transition:opacity .3s">
+            <div class="bg-white w-[1000px] max-h-[92vh] rounded-xl shadow-2xl overflow-hidden flex flex-col" onclick="event.stopPropagation()" style="transform:scale(.95);transition:transform .3s">
+                <div class="p-5 bg-slate-800 text-white flex justify-between items-center shrink-0">
+                    <div class="flex items-center space-x-3"><div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center border border-slate-600"><i class="fa-solid fa-flag text-teal-400"></i></div>
+                    <div><h3 class="text-lg font-bold">${hostName} — Flag 수신 타임라인</h3><p class="text-xs text-slate-300 mt-0.5">수신 주기: <b class="text-teal-400">${interval}분</b> | 전체 <b class="text-white">${sorted.length}건</b> | 장애→재구동→복구 흐름을 시간순으로 확인</p></div></div>
+                    <button onclick="controlViews.closeFlagDetail()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                <div class="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
+                    <div class="flex space-x-3">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded border bg-teal-50 text-teal-700 border-teal-200"><i class="fa-solid fa-circle-check mr-1"></i>정상 ${cnt.normal||0}</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded border bg-yellow-50 text-yellow-700 border-yellow-200"><i class="fa-solid fa-triangle-exclamation mr-1"></i>지연 ${cnt.warning||0}</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded border bg-red-50 text-red-700 border-red-200"><i class="fa-solid fa-circle-xmark mr-1"></i>장애 ${cnt.critical||0}</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded border bg-blue-50 text-blue-700 border-blue-200"><i class="fa-solid fa-paper-plane mr-1"></i>명령 ${cnt.system||0}</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded border bg-green-50 text-green-700 border-green-200"><i class="fa-solid fa-rotate-right mr-1"></i>성공 ${cnt.success||0}</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded border bg-purple-50 text-purple-700 border-purple-200"><i class="fa-solid fa-skull-crossbones mr-1"></i>실패 ${cnt.error||0}</span>
+                    </div>
+                    <span class="text-[10px] text-slate-400">과거 ↓ → 현재 (시간순)</span>
+                </div>
+                <div class="flex-1 overflow-y-auto p-6"><div class="relative pl-10">${sorted.map((f,i) => {
+                    const evt = f.severity !== 'normal';
+                    const lc = evt ? (f.severity==='critical'||f.severity==='error'?'bg-red-300':f.severity==='warning'?'bg-yellow-300':'bg-blue-300') : 'bg-slate-200';
+                    const dc = f.severity==='normal'?'bg-teal-400 border-teal-300':f.severity==='warning'?'bg-yellow-400 border-yellow-300':f.severity==='critical'?'bg-red-500 border-red-300':f.severity==='system'?'bg-blue-500 border-blue-300':f.severity==='success'?'bg-green-500 border-green-300':'bg-purple-500 border-purple-300';
+                    return `<div class="relative mb-1">${i<sorted.length-1?`<div class="absolute left-[-24px] top-7 w-0.5 h-full ${lc}"></div>`:''}<div class="absolute left-[-30px] top-2 w-3.5 h-3.5 rounded-full border-2 ${dc} shadow-sm"></div><div class="pb-2"><div class="${evt?'bg-white border border-slate-200 rounded-lg p-3.5 shadow-sm':'py-1.5'}"><div class="flex items-center space-x-2 flex-wrap"><span class="font-mono text-[11px] text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">${f.time}</span><span class="${sm[f.severity]||sm.normal} font-bold px-2.5 py-0.5 rounded border text-[10px]"><i class="fa-solid ${ic[f.severity]||ic.normal} mr-1"></i>${this._fLabel[f.code]||f.code}</span>${f.latency!=='-'?`<span class="text-[10px] text-slate-400 font-mono bg-slate-50 px-1.5 py-0.5 rounded">${f.latency}</span>`:''}</div><p class="text-[12px] text-slate-600 mt-1.5 ${evt?'font-medium':''}">${f.detail}</p></div></div></div>`;
+                }).join('')}${sorted.length===0?'<div class="text-center py-10 text-slate-400 font-bold">Flag 이력이 없습니다.</div>':''}</div></div>
+            </div></div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        setTimeout(() => { const o=document.getElementById('flag-detail-overlay'); if(o){o.style.opacity='1';o.firstElementChild.style.transform='scale(1)';} }, 10);
+    },
+    closeFlagDetail() { const o=document.getElementById('flag-detail-overlay'); if(o){o.style.opacity='0';o.firstElementChild.style.transform='scale(.95)';setTimeout(()=>o.remove(),300);} },
 
     // ─── [신규] 재구동 이력 관리 ───
     renderRebootView() {
@@ -415,11 +456,38 @@ const controlViews = {
                 <p class="text-xs text-slate-500 mt-1">시스템에서 장애를 판단하는 전역 임계값과 관리자 알림 수신 채널을 설정합니다.</p>
             </div>
             <div class="bg-white border border-slate-200 rounded p-6 mb-6 shadow-sm">
-                <h3 class="text-[13px] font-bold text-slate-800 mb-5 pb-2 border-b border-slate-100"><i class="fa-solid fa-stopwatch text-teal-600 mr-2"></i>상태 판별 임계값 설정</h3>
-                <div class="space-y-4 max-w-[450px]">
-                    <div class="flex items-center justify-between"><div><label class="block text-sm font-bold text-slate-700">정상 통신 기준 시간</label></div><div class="relative w-28"><input type="number" id="norm-input" value="${state.normalThreshold}" class="w-full text-right pr-7 pl-2 py-1.5 border border-slate-300 rounded text-sm font-mono font-bold focus:border-teal-500 outline-none"><span class="absolute right-3 top-1.5 text-xs text-slate-500 font-bold">분</span></div></div>
-                    <div class="flex items-center justify-between border-t border-slate-100 pt-4"><div><label class="block text-sm font-bold text-yellow-600">수신 지연 (주의) 기준</label></div><div class="relative w-28"><input type="number" id="warn-input" value="${state.warningThreshold}" class="w-full text-right pr-7 pl-2 py-1.5 border border-slate-300 rounded text-sm font-mono font-bold focus:border-teal-500 outline-none"><span class="absolute right-3 top-1.5 text-xs text-slate-500 font-bold">분</span></div></div>
-                    <div class="flex items-center justify-between border-t border-slate-100 pt-4"><div><label class="block text-sm font-bold text-red-600">장애 판단 및 복구 개입 기준</label></div><div class="relative w-28"><input type="number" id="err-input" value="${state.errorThreshold}" class="w-full text-right pr-7 pl-2 py-1.5 border border-red-300 rounded text-sm font-mono font-bold focus:border-red-500 outline-none text-red-700 bg-red-50"><span class="absolute right-3 top-1.5 text-xs text-red-500 font-bold">분</span></div></div>
+                <h3 class="text-[13px] font-bold text-slate-800 mb-3 pb-2 border-b border-slate-100"><i class="fa-solid fa-clock text-blue-600 mr-2"></i>Flag 수신 주기 설정</h3>
+                <p class="text-[11px] text-slate-500 mb-4">각 고객사 Agent가 관제 서버로 Flag를 전송하는 주기를 설정합니다. 설정된 주기마다 Agent 상태를 수신하여 정상/주의/장애를 판단합니다.</p>
+                <div class="flex items-center justify-between max-w-[450px]">
+                    <div><label class="block text-sm font-bold text-slate-700">Flag 수신 주기</label><span class="text-[11px] text-slate-400">Agent → 관제서버 전송 간격</span></div>
+                    <select id="flag-interval" class="border border-slate-300 rounded px-3 py-1.5 text-sm font-bold text-slate-700 outline-none focus:border-teal-500 w-40">
+                        <option value="10" ${(state.flagInterval||60)==10?'selected':''}>10분</option>
+                        <option value="30" ${(state.flagInterval||60)==30?'selected':''}>30분</option>
+                        <option value="60" ${(state.flagInterval||60)==60?'selected':''}>1시간 (기본)</option>
+                        <option value="120" ${(state.flagInterval||60)==120?'selected':''}>2시간</option>
+                        <option value="180" ${(state.flagInterval||60)==180?'selected':''}>3시간</option>
+                    </select>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded p-6 mb-6 shadow-sm">
+                <h3 class="text-[13px] font-bold text-slate-800 mb-3 pb-2 border-b border-slate-100"><i class="fa-solid fa-stopwatch text-teal-600 mr-2"></i>상태 판별 임계값 설정</h3>
+                <p class="text-[11px] text-slate-500 mb-4">Flag 수신 주기 기준으로, 마지막 수신 이후 경과 시간에 따라 단말의 상태를 자동으로 판별합니다.</p>
+                <div class="space-y-4 max-w-[550px]">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1"><label class="block text-sm font-bold text-teal-700"><i class="fa-solid fa-circle-check mr-1.5 text-teal-500"></i>정상 통신 기준</label><p class="text-[11px] text-slate-400 mt-0.5 ml-5">마지막 Flag 수신 후 <b class="text-teal-600">${state.normalThreshold}분 이내</b>에 다음 Flag가 수신되면 <b class="text-teal-600">정상</b>으로 판단합니다.</p></div>
+                        <div class="relative w-28 shrink-0 ml-4"><input type="number" id="norm-input" value="${state.normalThreshold}" class="w-full text-right pr-7 pl-2 py-1.5 border border-slate-300 rounded text-sm font-mono font-bold focus:border-teal-500 outline-none"><span class="absolute right-3 top-1.5 text-xs text-slate-500 font-bold">분</span></div>
+                    </div>
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+                        <div class="flex-1"><label class="block text-sm font-bold text-yellow-600"><i class="fa-solid fa-triangle-exclamation mr-1.5 text-yellow-500"></i>수신 지연 (주의) 기준</label><p class="text-[11px] text-slate-400 mt-0.5 ml-5">마지막 Flag 수신 후 <b class="text-yellow-600">${state.warningThreshold}분 이내</b>까지 미수신 시 <b class="text-yellow-600">주의</b> 상태로 전환됩니다.</p></div>
+                        <div class="relative w-28 shrink-0 ml-4"><input type="number" id="warn-input" value="${state.warningThreshold}" class="w-full text-right pr-7 pl-2 py-1.5 border border-slate-300 rounded text-sm font-mono font-bold focus:border-teal-500 outline-none"><span class="absolute right-3 top-1.5 text-xs text-slate-500 font-bold">분</span></div>
+                    </div>
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+                        <div class="flex-1"><label class="block text-sm font-bold text-red-600"><i class="fa-solid fa-circle-xmark mr-1.5 text-red-500"></i>장애 판단 기준</label><p class="text-[11px] text-slate-400 mt-0.5 ml-5">마지막 Flag 수신 후 <b class="text-red-600">${state.errorThreshold}분 이상</b> 미수신 시 <b class="text-red-600">장애</b>로 판단하며, Watcher 자동 재구동이 시작됩니다.</p></div>
+                        <div class="relative w-28 shrink-0 ml-4"><input type="number" id="err-input" value="${state.errorThreshold}" class="w-full text-right pr-7 pl-2 py-1.5 border border-red-300 rounded text-sm font-mono font-bold focus:border-red-500 outline-none text-red-700 bg-red-50"><span class="absolute right-3 top-1.5 text-xs text-red-500 font-bold">분</span></div>
+                    </div>
+                </div>
+                <div class="mt-5 p-3 bg-slate-50 border border-slate-200 rounded">
+                    <p class="text-[11px] text-slate-500"><i class="fa-solid fa-info-circle text-slate-400 mr-1"></i><b>판별 흐름:</b> Flag 수신 → <span class="text-teal-600 font-bold">${state.normalThreshold}분 이내 = 정상</span> → <span class="text-yellow-600 font-bold">${state.warningThreshold}분 이내 = 주의</span> → <span class="text-red-600 font-bold">${state.errorThreshold}분 이상 = 장애</span> → Watcher 자동 재구동</p>
                 </div>
             </div>
             <div class="bg-white border border-slate-200 rounded p-6 mb-6 shadow-sm">

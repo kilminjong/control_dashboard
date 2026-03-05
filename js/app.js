@@ -1,5 +1,5 @@
 const app = {
-    state: { normalThreshold: 5, warningThreshold: 10, errorThreshold: 30, autoRecovery: true },
+    state: { normalThreshold: 5, warningThreshold: 10, errorThreshold: 30, flagInterval: 60, autoRecovery: true },
     chartInstances: [],
     c360Charts: [], 
     
@@ -563,6 +563,7 @@ const app = {
         this.state.normalThreshold = document.getElementById('norm-input').value;
         this.state.warningThreshold = document.getElementById('warn-input').value;
         this.state.errorThreshold = document.getElementById('err-input').value;
+        this.state.flagInterval = parseInt(document.getElementById('flag-interval').value) || 60;
         const btn = document.getElementById('save-btn');
         const originalText = btn.innerHTML;
         btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>저장 중...`;
