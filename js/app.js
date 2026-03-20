@@ -74,14 +74,14 @@ const app = {
         const modalHtml = `
         <div id="proposal-modal-overlay" onclick="app.closeProposalModal()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[120] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center">
             <div id="proposal-modal-content" class="bg-white w-[650px] rounded-xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col" onclick="event.stopPropagation()">
-                <div class="p-5 bg-teal-700 text-white flex justify-between items-center">
+                <div id="prop-header" class="p-5 bg-teal-700 text-white flex justify-between items-center">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center border border-teal-500 shadow-sm">
-                            <i class="fa-solid fa-paper-plane text-xl text-teal-100"></i>
+                        <div id="prop-icon-wrap" class="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center border border-teal-500 shadow-sm">
+                            <i id="prop-icon" class="fa-solid fa-paper-plane text-xl text-teal-100"></i>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold tracking-tight">마케팅 및 영업 제안 발송</h3>
-                            <p class="text-xs text-teal-100 mt-0.5">수집된 데이터를 기반으로 타겟 고객사에게 맞춤형 제안서를 전송합니다.</p>
+                            <h3 id="prop-title" class="text-lg font-bold tracking-tight">마케팅 및 영업 제안 발송</h3>
+                            <p id="prop-subtitle" class="text-xs text-teal-100 mt-0.5">수집된 데이터를 기반으로 타겟 고객사에게 맞춤형 제안서를 전송합니다.</p>
                         </div>
                     </div>
                     <button onclick="app.closeProposalModal()" class="text-teal-200 hover:text-white transition"><i class="fa-solid fa-xmark text-xl"></i></button>
@@ -107,6 +107,7 @@ const app = {
                             </div>
                         </div>
                     </div>
+                    <div id="prop-data-summary" class="mb-5 hidden"></div>
                     
                     <div>
                         <div class="flex justify-between items-end mb-2">
@@ -130,20 +131,109 @@ const app = {
     openProposalModal(company, type) {
         document.getElementById('prop-company').innerText = company;
         document.getElementById('prop-type').innerText = type;
-        
-        let msg = '';
-        if (type.includes('대출') || type.includes('여신')) {
-            msg = `[하나은행] ${company} 대표님,\n\n최근 귀사의 안정적인 매출 성장 및 우수한 결제 이력을 바탕으로, 하나은행에서 특별 '기업 우대 여신(대출) 한도'를 추가 산정하였습니다.\n\n다음 달 예정된 결제 자금 소요 등 필요하신 시기에 최저 금리로 자금을 활용하실 수 있도록 안내해 드립니다. 담당 영업점 지점장이 금일 중 유선으로 연락드리겠습니다.\n\n감사합니다.`;
-        } else if (type.includes('예금') || type.includes('예적금')) {
+        const hdr = document.getElementById('prop-header');
+        const icon = document.getElementById('prop-icon');
+        const iconWrap = document.getElementById('prop-icon-wrap');
+        const title = document.getElementById('prop-title');
+        const subtitle = document.getElementById('prop-subtitle');
+        const summaryEl = document.getElementById('prop-data-summary');
+        let msg = '', summaryHtml = '';
+
+        if (type.includes('예금') || type.includes('예적금') || type.includes('유치') || type.includes('금리')) {
+            hdr.className = 'p-5 bg-amber-600 text-white flex justify-between items-center';
+            iconWrap.className = 'w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center border border-amber-400 shadow-sm';
+            icon.className = 'fa-solid fa-piggy-bank text-xl text-amber-100';
+            title.innerText = '예적금 유치 제안 발송';
+            subtitle.innerText = '타행 예적금 만기 도래 고객에게 당행 특별 금리 유치 제안서를 전송합니다.';
+            const assets = DB.getAssets ? DB.getAssets().filter(a => a.name && a.name.includes(company.split(' ')[0])) : [];
+            const totalAmt = assets.reduce((s,a) => s + (a.amount||0), 0);
+            const d30 = assets.filter(a => (a.dday||999) <= 30);
+            const banks = [...new Set(assets.map(a=>a.bank))];
+            summaryHtml = `<div class="bg-white p-4 rounded-lg border border-amber-200 shadow-sm">
+                <p class="text-[11px] font-bold text-amber-700 uppercase mb-3"><i class="fa-solid fa-chart-pie mr-1.5"></i>고객사 예적금 보유 현황 분석</p>
+                <div class="grid grid-cols-3 gap-3 mb-3">
+                    <div class="bg-amber-50 p-2.5 rounded border border-amber-100 text-center"><p class="text-[9px] font-bold text-amber-600 mb-0.5">타행 보유 총액</p><p class="text-lg font-black text-amber-800">${totalAmt>0?Math.round(totalAmt/100000000).toLocaleString():'N/A'}<span class="text-xs ml-0.5">억</span></p></div>
+                    <div class="bg-red-50 p-2.5 rounded border border-red-100 text-center"><p class="text-[9px] font-bold text-red-600 mb-0.5">D-30 만기 임박</p><p class="text-lg font-black text-red-700">${d30.length}<span class="text-xs ml-0.5">건</span></p></div>
+                    <div class="bg-slate-50 p-2.5 rounded border border-slate-200 text-center"><p class="text-[9px] font-bold text-slate-500 mb-0.5">보유 은행 수</p><p class="text-lg font-black text-slate-800">${banks.length}<span class="text-xs ml-0.5">곳</span></p></div>
+                </div>
+                ${d30.length>0?`<div class="bg-red-50 p-2.5 rounded border border-red-100"><p class="text-[10px] font-bold text-red-700 mb-1.5"><i class="fa-solid fa-clock mr-1"></i>만기 임박 상품 (D-30 이내)</p>${d30.slice(0,3).map(a=>`<div class="flex justify-between text-[11px] mb-0.5"><span class="text-slate-600">${a.bank||'타행'} ${a.type||'예금'}</span><span class="font-mono font-bold text-slate-800">${Math.round((a.amount||0)/100000000).toLocaleString()}억</span><span class="text-red-600 font-bold">D-${a.dday||'?'}</span></div>`).join('')}</div>`:'<p class="text-[10px] text-slate-400 text-center py-2">만기 임박 상품 없음 — 전체 보유 현황 기반 유치 제안</p>'}
+            </div>`;
             msg = `[하나은행] ${company} 재무담당자님,\n\n최근 타행 정기예금 만기 도래 일정이 확인되어, 당행에서 VIP 고객사를 위해 준비한 [특별 금리 우대 기업예금] 특판 상품을 선제적으로 제안 드립니다.\n\n현재 시장 금리 대비 최고 0.5%p 우대 혜택을 제공해 드릴 수 있으니, 첨부된 제안서를 확인해 보시기 바랍니다.`;
+
+        } else if (type.includes('대출') || type.includes('여신') || type.includes('운전자금')) {
+            hdr.className = 'p-5 bg-blue-700 text-white flex justify-between items-center';
+            iconWrap.className = 'w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center border border-blue-500 shadow-sm';
+            icon.className = 'fa-solid fa-hand-holding-dollar text-xl text-blue-100';
+            title.innerText = '기업 여신/대출 제안 발송';
+            subtitle.innerText = 'B2B 거래 분석 기반으로 결제성 자금 수요가 예측되는 고객에게 여신 제안을 전송합니다.';
+            const b2b = DB.getB2B ? DB.getB2B().filter(b => b.name && b.name.includes(company.split(' ')[0])) : [];
+            const totalB2B = b2b.reduce((s,b) => s + (b.amount||0), 0);
+            const d30b = b2b.filter(b => (b.dday||999) <= 30);
+            const tax = DB.getTax ? DB.getTax().filter(t => t.partner && t.partner.includes(company.split(' ')[0])) : [];
+            const salesAmt = tax.filter(t=>t.type==='매출').reduce((s,t)=>s+(t.amount||0),0);
+            summaryHtml = `<div class="bg-white p-4 rounded-lg border border-blue-200 shadow-sm">
+                <p class="text-[11px] font-bold text-blue-700 uppercase mb-3"><i class="fa-solid fa-file-invoice-dollar mr-1.5"></i>고객사 여신 수요 분석</p>
+                <div class="grid grid-cols-3 gap-3 mb-3">
+                    <div class="bg-blue-50 p-2.5 rounded border border-blue-100 text-center"><p class="text-[9px] font-bold text-blue-600 mb-0.5">B2B 거래 총액</p><p class="text-lg font-black text-blue-800">${totalB2B>0?Math.round(totalB2B/100000000).toLocaleString():'N/A'}<span class="text-xs ml-0.5">억</span></p></div>
+                    <div class="bg-red-50 p-2.5 rounded border border-red-100 text-center"><p class="text-[9px] font-bold text-red-600 mb-0.5">D-30 만기 도래</p><p class="text-lg font-black text-red-700">${d30b.length}<span class="text-xs ml-0.5">건</span></p></div>
+                    <div class="bg-teal-50 p-2.5 rounded border border-teal-100 text-center"><p class="text-[9px] font-bold text-teal-600 mb-0.5">추정 매출</p><p class="text-lg font-black text-teal-800">${salesAmt>0?Math.round(salesAmt/100000000).toLocaleString():'N/A'}<span class="text-xs ml-0.5">억</span></p></div>
+                </div>
+                <div class="bg-blue-50 p-2.5 rounded border border-blue-100"><p class="text-[10px] font-bold text-blue-700 mb-1"><i class="fa-solid fa-lightbulb mr-1"></i>제안 근거</p><p class="text-[11px] text-slate-600 leading-relaxed">${d30b.length>0?`만기 30일 이내 B2B 거래 ${d30b.length}건(${Math.round(d30b.reduce((s,b)=>s+(b.amount||0),0)/100000000).toLocaleString()}억)이 도래하여 결제성 자금 수요가 예측됩니다.`:'안정적인 매출 실적과 B2B 거래 이력을 바탕으로 기업 우대 여신 한도를 산정하였습니다.'}</p></div>
+            </div>`;
+            msg = `[하나은행] ${company} 대표님,\n\n최근 귀사의 안정적인 매출 성장 및 우수한 결제 이력을 바탕으로, 하나은행에서 특별 '기업 우대 여신(대출) 한도'를 추가 산정하였습니다.\n\n다음 달 예정된 결제 자금 소요 등 필요하신 시기에 최저 금리로 자금을 활용하실 수 있도록 안내해 드립니다.`;
+
         } else if (type.includes('카드')) {
-            msg = `[하나은행] ${company} 관리담당자님,\n\n당행의 기업 비용 분석 시스템(CRM) 결과, 귀사의 월간 주유 및 교통비 지출 비중이 높은 것으로 파악되었습니다.\n\n이에 하나은행 'Biz 주유 특화 법인카드'로 전환하실 경우, 연간 최소 350만 원 이상의 비용 절감이 예상되어 맞춤형 카드를 제안해 드립니다.`;
+            hdr.className = 'p-5 bg-purple-700 text-white flex justify-between items-center';
+            iconWrap.className = 'w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center border border-purple-500 shadow-sm';
+            icon.className = 'fa-regular fa-credit-card text-xl text-purple-100';
+            title.innerText = '법인카드 전환 제안 발송';
+            subtitle.innerText = '타행 법인카드 사용 분석 결과, 당행 전환 시 비용 절감이 가능한 고객에게 제안합니다.';
+            const cards = DB.getCards ? DB.getCards().filter(c => c.name && c.name.includes(company.split(' ')[0])) : [];
+            const totalCard = cards.reduce((s,c) => s + (c.amount||0), 0);
+            const cardCo = [...new Set(cards.map(c=>c.cardCompany||c.bank||'타행'))];
+            const categories = {}; cards.forEach(c => { const cat=c.category||'기타'; categories[cat]=(categories[cat]||0)+(c.amount||0); });
+            const topCat = Object.entries(categories).sort((a,b)=>b[1]-a[1]);
+            const estSave = Math.round(totalCard * 0.08 / 10000);
+            summaryHtml = `<div class="bg-white p-4 rounded-lg border border-purple-200 shadow-sm">
+                <p class="text-[11px] font-bold text-purple-700 uppercase mb-3"><i class="fa-regular fa-credit-card mr-1.5"></i>고객사 타행 법인카드 사용 분석</p>
+                <div class="grid grid-cols-3 gap-3 mb-3">
+                    <div class="bg-purple-50 p-2.5 rounded border border-purple-100 text-center"><p class="text-[9px] font-bold text-purple-600 mb-0.5">타행 카드 사용액</p><p class="text-lg font-black text-purple-800">${totalCard>0?Math.round(totalCard/10000).toLocaleString():'N/A'}<span class="text-xs ml-0.5">만</span></p></div>
+                    <div class="bg-slate-50 p-2.5 rounded border border-slate-200 text-center"><p class="text-[9px] font-bold text-slate-500 mb-0.5">이용 카드사</p><p class="text-sm font-black text-slate-800">${cardCo.length>0?cardCo.slice(0,2).join(', '):'N/A'}</p></div>
+                    <div class="bg-teal-50 p-2.5 rounded border border-teal-100 text-center"><p class="text-[9px] font-bold text-teal-600 mb-0.5">전환 시 예상 절감</p><p class="text-lg font-black text-teal-800">${estSave>0?estSave.toLocaleString():'N/A'}<span class="text-xs ml-0.5">만/년</span></p></div>
+                </div>
+                ${topCat.length>0?`<div class="bg-purple-50 p-2.5 rounded border border-purple-100"><p class="text-[10px] font-bold text-purple-700 mb-1.5"><i class="fa-solid fa-chart-pie mr-1"></i>업종별 결제 비중</p>${topCat.slice(0,4).map(([cat,amt])=>`<div class="flex justify-between text-[11px] mb-0.5"><span class="text-slate-600">${cat}</span><span class="font-mono font-bold text-slate-800">${Math.round(amt/10000).toLocaleString()}만</span><span class="text-purple-600 font-bold">${totalCard>0?Math.round(amt/totalCard*100):0}%</span></div>`).join('')}</div>`:'<p class="text-[10px] text-slate-400 text-center py-2">카드 사용 상세 데이터 기반 맞춤 제안</p>'}
+            </div>`;
+            msg = `[하나은행] ${company} 관리담당자님,\n\n당행의 기업 비용 분석 시스템(CRM) 결과, 귀사의 월간 주유 및 교통비 지출 비중이 높은 것으로 파악되었습니다.\n\n이에 하나은행 'Biz 주유 특화 법인카드'로 전환하실 경우, 연간 최소 ${estSave>0?estSave.toLocaleString()+'만':'350만'} 원 이상의 비용 절감이 예상되어 맞춤형 카드를 제안해 드립니다.`;
+
+        } else if (type.includes('세그먼트') || type.includes('종합') || type.includes('패키지')) {
+            hdr.className = 'p-5 bg-indigo-700 text-white flex justify-between items-center';
+            iconWrap.className = 'w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center border border-indigo-500 shadow-sm';
+            icon.className = 'fa-solid fa-cubes text-xl text-indigo-100';
+            title.innerText = '종합 금융 패키지 제안 발송';
+            subtitle.innerText = '세그먼트 분석 결과 기반 고객 맞춤 복합 금융 상품 패키지를 제안합니다.';
+            summaryHtml = `<div class="bg-white p-4 rounded-lg border border-indigo-200 shadow-sm">
+                <p class="text-[11px] font-bold text-indigo-700 uppercase mb-3"><i class="fa-solid fa-users-viewfinder mr-1.5"></i>세그먼트 기반 맞춤 제안</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-indigo-50 p-2.5 rounded border border-indigo-100"><p class="text-[10px] font-bold text-indigo-700 mb-1"><i class="fa-solid fa-crosshairs mr-1"></i>제안 전략</p><p class="text-[11px] text-slate-600">수집 데이터 종합 분석(자산·거래·카드·매출·자금흐름) 기반 고객 스코어링 결과에 따른 맞춤 제안</p></div>
+                    <div class="bg-teal-50 p-2.5 rounded border border-teal-100"><p class="text-[10px] font-bold text-teal-700 mb-1"><i class="fa-solid fa-arrow-trend-up mr-1"></i>기대 효과</p><p class="text-[11px] text-slate-600">예적금 우대금리 + 기업 여신 + 법인카드 혜택 패키지로 당행 점유율 상승 및 고객 Lock-in 효과</p></div>
+                </div>
+            </div>`;
+            msg = `[하나은행] ${company} 담당자님,\n\n하나은행 통합CMS 관제센터의 데이터 분석 결과, 귀사에 최적화된 종합 금융 패키지를 준비하였습니다.\n\n예적금 우대금리 + 기업 여신 + 법인카드 혜택을 패키지로 제공해 드릴 수 있으니, 상세 내용을 확인해 주시기 바랍니다.`;
+
         } else {
+            hdr.className = 'p-5 bg-teal-700 text-white flex justify-between items-center';
+            iconWrap.className = 'w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center border border-teal-500 shadow-sm';
+            icon.className = 'fa-solid fa-paper-plane text-xl text-teal-100';
+            title.innerText = '마케팅 및 영업 제안 발송';
+            subtitle.innerText = '수집된 데이터를 기반으로 타겟 고객사에게 맞춤형 제안서를 전송합니다.';
+            summaryHtml = '';
             msg = `[하나은행] ${company} 담당자님,\n\n하나은행 통합CMS 관제센터입니다. 귀사의 안정적인 금융 업무를 위한 맞춤형 혜택을 안내해 드립니다.`;
         }
+
+        if(summaryHtml) { summaryEl.innerHTML = summaryHtml; summaryEl.classList.remove('hidden'); }
+        else { summaryEl.innerHTML = ''; summaryEl.classList.add('hidden'); }
         
         document.getElementById('prop-message').value = msg;
-        
         const overlay = document.getElementById('proposal-modal-overlay');
         const content = document.getElementById('proposal-modal-content');
         overlay.classList.remove('hidden');
@@ -230,14 +320,67 @@ const app = {
                             <p class="text-sm font-bold text-slate-800" id="mon-modal-elapsed">1분 이내</p>
                         </div>
                     </div>
+                    <div class="flex space-x-2 mt-2">
+                        <button onclick="app.doAgentReboot()" id="mon-reboot-btn" class="flex-1 bg-slate-800 text-white py-2.5 rounded text-xs font-bold hover:bg-slate-700 shadow-sm transition"><i class="fa-solid fa-rotate-right mr-1.5"></i>Agent 재구동</button>
+                        <button onclick="app.doPingTest()" id="mon-ping-btn" class="flex-1 border border-teal-500 bg-teal-50 text-teal-700 py-2.5 rounded text-xs font-bold hover:bg-teal-100 shadow-sm transition"><i class="fa-solid fa-network-wired mr-1.5"></i>Ping 테스트</button>
+                    </div>
+                    <div id="mon-action-result" class="mt-3 hidden"></div>
                 </div>
             </div>
         </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
+    doAgentReboot() {
+        const btn = document.getElementById('mon-reboot-btn');
+        const result = document.getElementById('mon-action-result');
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>재구동 처리 중...`;
+        btn.disabled = true; btn.classList.add('opacity-60');
+        result.className = 'mt-3 p-3 rounded border text-center bg-slate-50 border-slate-200';
+        result.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-slate-400 mr-1.5"></i><span class="text-xs font-bold text-slate-500">Watcher를 통해 Agent 재구동 명령 전송 중...</span>`;
+        result.classList.remove('hidden');
+        setTimeout(() => {
+            const success = Math.random() > 0.2;
+            if(success) {
+                result.className = 'mt-3 p-3 rounded border text-center bg-teal-50 border-teal-200';
+                result.innerHTML = `<i class="fa-solid fa-circle-check text-teal-600 mr-1.5"></i><span class="text-xs font-bold text-teal-700">Agent 재구동이 완료되었습니다.</span><p class="text-[10px] text-teal-600 mt-1">응답 시간: ${(Math.random()*2+0.5).toFixed(1)}초 | 상태: 정상 통신</p>`;
+            } else {
+                result.className = 'mt-3 p-3 rounded border text-center bg-red-50 border-red-200';
+                result.innerHTML = `<i class="fa-solid fa-circle-xmark text-red-600 mr-1.5"></i><span class="text-xs font-bold text-red-700">Agent 재구동에 실패했습니다.</span><p class="text-[10px] text-red-600 mt-1">원인: 대상 PC 응답 없음 — 현장 점검이 필요합니다.</p>`;
+            }
+            btn.innerHTML = orig; btn.disabled = false; btn.classList.remove('opacity-60');
+        }, 2000);
+    },
+
+    doPingTest() {
+        const btn = document.getElementById('mon-ping-btn');
+        const result = document.getElementById('mon-action-result');
+        const ip = document.getElementById('mon-modal-ip').innerText;
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i>테스트 중...`;
+        btn.disabled = true; btn.classList.add('opacity-60');
+        result.className = 'mt-3 p-3 rounded border text-center bg-slate-50 border-slate-200';
+        result.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-slate-400 mr-1.5"></i><span class="text-xs font-bold text-slate-500">잠시만 기다려주세요... Watcher → 스케줄 PC에서 Ping 테스트 진행 중 (${ip})</span>`;
+        result.classList.remove('hidden');
+        setTimeout(() => {
+            const success = Math.random() > 0.3;
+            const ms = Math.floor(Math.random()*50+5);
+            if(success) {
+                result.className = 'mt-3 p-3 rounded border text-center bg-teal-50 border-teal-200';
+                result.innerHTML = `<i class="fa-solid fa-circle-check text-teal-600 mr-1.5"></i><span class="text-xs font-bold text-teal-700">Ping 정상입니다.</span><p class="text-[10px] text-teal-600 mt-1 font-mono">Reply from ${ip}: bytes=32 time=${ms}ms TTL=128 — 4패킷 전송, 4수신 (손실 0%)</p>`;
+            } else {
+                result.className = 'mt-3 p-3 rounded border text-center bg-red-50 border-red-200';
+                result.innerHTML = `<i class="fa-solid fa-circle-xmark text-red-600 mr-1.5"></i><span class="text-xs font-bold text-red-700">Ping이 연결되지 않습니다.</span><p class="text-[10px] text-red-600 mt-1 font-mono">Request timed out. ${ip} — 4패킷 전송, 0수신 (손실 100%)</p>`;
+            }
+            btn.innerHTML = orig; btn.disabled = false; btn.classList.remove('opacity-60');
+        }, 1800);
+    },
+
     openMonitoringModal(companyName) {
         const hostData = DB.getHostByName(companyName) || DB.getHosts()[0];
+        document.getElementById('mon-action-result').classList.add('hidden');
+        document.getElementById('mon-action-result').innerHTML = '';
         
         document.getElementById('mon-modal-name').innerText = hostData.name;
         document.getElementById('mon-modal-id').innerText = "통합 ID: " + hostData.id;
@@ -489,7 +632,10 @@ const app = {
             const contextMap = { assetView:'asset', depositView:'deposit', b2bView:'b2b', cardView:'card', taxView:'tax', cashFlow:'cashflow', dataDashboard:'general', pcStatus:'monitoring', flagHistory:'monitoring', rebootView:'monitoring', groupManage:'monitoring' };
             this._currentContext = contextMap[viewName] || 'general';
             container.innerHTML = views[viewName].render();
-            if(views[viewName].init) setTimeout(() => views[viewName].init(), 50); 
+            if(views[viewName].init) setTimeout(() => views[viewName].init(), 50);
+            if(this._dataGuide && this._dataGuide[viewName]) {
+                container.insertAdjacentHTML('beforeend', `<button onclick="app.showDataGuide('${viewName}')" class="fixed bottom-6 right-6 z-50 bg-slate-800 text-white pl-3.5 pr-4 py-2.5 rounded-full text-xs font-bold shadow-lg hover:bg-teal-600 transition-colors flex items-center space-x-2"><i class="fa-solid fa-database"></i><span>데이터 활용 설명</span></button>`);
+            } 
         }
     },
 
@@ -520,7 +666,52 @@ const app = {
             btn.classList.replace('bg-slate-800', 'bg-teal-600');
             setTimeout(() => { btn.innerHTML = originalText; btn.classList.replace('bg-teal-600', 'bg-slate-800'); btn.classList.remove('opacity-75'); }, 2000);
         }, 800);
-    }
+    },
+
+    _dataGuide: {
+        dashboard:{title:'대시보드 총괄표',icon:'fa-table-cells-large',color:'#0d9488',items:[{data:'Agent Flag 수신 상태',source:'각 고객사 스케줄 PC Agent가 주기(기본 1시간)마다 전송하는 Flag 값',usage:'정상/주의/장애/지속장애 4단계 KPI + 도넛 차트'},{data:'장애 발생 추이',source:'최근 7일간 일별 장애 건수 집계',usage:'라인 차트로 증감 패턴 파악'},{data:'반복 장애 고객',source:'30일 내 2회+ 장애 고객사 필터링',usage:'집중 관리 대상 패널'},{data:'마케팅 데이터 수집 현황',source:'Agent 수집 금융 데이터(자산,B2B,카드,세금계산서) 건수',usage:'KPI 4칸으로 수집 진행률'}]},
+        pcStatus:{title:'단말 상태 관제',icon:'fa-server',color:'#3b82f6',items:[{data:'Agent 단말 정보',source:'고객사별 스케줄 PC의 IP, OS, Agent ID',usage:'300대 단말 테이블 + 검색/필터'},{data:'Flag 수신 시간·경과',source:'마지막 Flag 수신 시각 기준 경과 시간',usage:'임계값(5/10/30분)으로 상태 자동 판별'},{data:'VIP/일반 등급',source:'고객사 등급 관리에서 설정',usage:'VIP 우선 표시 및 필터링'}]},
+        flagHistory:{title:'Flag 수신 이력',icon:'fa-list-check',color:'#f59e0b',items:[{data:'Flag 수신 로그',source:'Agent→관제서버 전송 시 기록 (정상/지연/미수신/재구동)',usage:'유형별 6종 카운트 + 이력 테이블'},{data:'고객사별 타임라인',source:'특정 고객사의 시간순 Flag 전체 기록',usage:'장애→재구동→복구 흐름 시각적 확인'}]},
+        rebootView:{title:'재구동 이력 관리',icon:'fa-rotate-right',color:'#8b5cf6',items:[{data:'자동 재구동 기록',source:'Watcher.dog 장애 감지 → Agent 재시작 시도 이력',usage:'시도 시간, 횟수, 성공/실패 테이블'},{data:'재구동 성공률',source:'전체 시도 대비 성공/실패 비율',usage:'KPI 4칸 (시도/성공/실패/성공률)'}]},
+        groupManage:{title:'고객사 등급 관리',icon:'fa-users-gear',color:'#6366f1',items:[{data:'고객사 기본 정보',source:'CMS 계약 고객사 목록',usage:'고객사 테이블'},{data:'등급 설정',source:'장애 빈도 기반 + 관리자 수동 설정',usage:'VIP/일반 분류, 전 메뉴 필터링'}]},
+        reportView:{title:'운영 보고서',icon:'fa-file-pdf',color:'#ef4444',items:[{data:'운영 통계',source:'기간별 장애 건수, 가동률, 재구동 현황 집계',usage:'보고서 자동 생성'},{data:'데이터 수집 실적',source:'보고 기간 내 수집 건수',usage:'수집 성과 보고'}]},
+        settings:{title:'모니터링 정책 설정',icon:'fa-sliders',color:'#64748b',items:[{data:'Flag 수신 주기',source:'Agent Flag 전송 간격 (10분~3시간)',usage:'전체 정상/주의/장애 판별 기준'},{data:'상태 판별 임계값',source:'정상(5분)/주의(10분)/장애(30분) 기준',usage:'경과 시간 비교로 상태 자동 분류'}]},
+        dataDashboard:{title:'데이터 활용 총괄',icon:'fa-chart-pie',color:'#0d9488',items:[{data:'은행별 보유 금액',source:'<b>수집:</b> 은행명, 계좌구분, 보유금액(백만/억)<br>전 금융기관 예적금 잔액',usage:'당행 vs 타행 점유율 도넛 차트로 유치 타겟 식별'},{data:'모계좌 거래내역 기반 자금흐름',source:'<b>수집:</b> 거래일자, 은행명, 입/출구분, 거래금액',usage:'자금흐름 순위 테이블로 자금 건전성 파악'},{data:'법인카드 승인내역',source:'<b>수집:</b> 카드사명, 사용건수, 사용액',usage:'8개월 추이 차트로 카드 전환 타겟 식별'},{data:'영업 타겟 긴급 액션',source:'복합 분석으로 만기 도래·고액 결제·매출 우량 기업 필터링',usage:'즉시 제안 필요 고객사 리스트 자동 생성'}]},
+        assetView:{title:'금융자산 점유 현황',icon:'fa-coins',color:'#f59e0b',items:[{data:'은행별 보유 금액',source:'<b>수집:</b> 은행명, 계좌구분(예금/적금/신탁), 보유금액(백만/억)<br>하나+타행 전체 예적금 잔액',usage:'은행별 스택 바차트로 자산 분포 시각화. 타행 비중 높은 기업을 유치 타겟으로 식별'},{data:'예적금 만기 정보',source:'<b>수집:</b> 은행명, 잔액, 만기일, 이율',usage:'D-30/60/90 만기 도래 리스트 자동 생성. 만기 전 선제적 유치 제안'},{data:'타행 금리 비교',source:'<b>수집:</b> 은행명, 이율',usage:'당행 전환 시 금리 이점을 수치로 산출'}]},
+        depositView:{title:'예적금 보유/만기 분석',icon:'fa-piggy-bank',color:'#3b82f6',items:[{data:'계좌 원장 상세',source:'<b>수집:</b> 은행명, 잔액, 만기일, 이율',usage:'은행별 만기 일정 테이블에서 D-Day 기준 하이라이팅'},{data:'고객사별 보유 잔액 합계',source:'<b>수집:</b> 은행명, 계좌구분, 보유금액',usage:'보유 현황 테이블 + 검색으로 당행 비중 확인'},{data:'당행/타행 점유율',source:'위 데이터 기반 자동 계산',usage:'도넛 차트로 점유율 시각화. 이탈 위험 조기 감지'}]},
+        b2bView:{title:'전자어음 및 B2B 거래',icon:'fa-file-invoice-dollar',color:'#8b5cf6',items:[{data:'B2B 전자어음/매출채권 원장',source:'<b>수집:</b> 은행명, 상품구분, 매입/매출 구분, 금액, 만기일',usage:'분기별 집계 + 유형별 분류. 매출채권 비중 높은 기업에 팩토링 제안'},{data:'만기 정보',source:'<b>수집:</b> 만기일, 금액, 상품구분',usage:'D-Day 만기 임박 하이라이팅. 단기 운전자금 대출 선제 제안'},{data:'거래 상대방',source:'<b>수집:</b> 매입/매출, 거래 상대 사업자 정보',usage:'주요 거래처 파악 → 신규 CMS 타겟 발굴'}]},
+        cardView:{title:'법인카드 사용 분석',icon:'fa-credit-card',color:'#ef4444',items:[{data:'타행 법인카드 승인내역',source:'<b>수집:</b> 카드사명, 사용카드 장수, 사용건수, 사용액',usage:'업종별 도넛 + 8개월 추이 라인 차트'},{data:'업종별 결제 비중',source:'승인내역에서 업종별 자동 분류·집계',usage:'주유 30%+ 기업에 특화 카드 전환 제안. 예상 절감액 산출'},{data:'고액 결제 기업',source:'월 500만원+ 기업 필터링',usage:'전환 효과 가장 큰 기업 우선 타겟팅'}]},
+        taxView:{title:'전자세금계산서',icon:'fa-receipt',color:'#0d9488',items:[{data:'세금계산서 매출/매입',source:'<b>수집:</b> 매입/매출 구분, 사업자명(번호), 합계금액, 품목, 작성일, 발행일',usage:'매출/매입 KPI + 거래 내역 테이블로 사업 규모 파악'},{data:'매출 규모 기반 여신 분석',source:'합계금액 집계 → 추정 연매출, 현 여신 한도 비교',usage:'매출 우량 + 여신 낮은 기업 → 여신 상향 제안'},{data:'거래처 네트워크',source:'<b>수집:</b> 사업자명, 매입/매출 구분',usage:'주요 거래처 파악 → 신규 CMS + 공급망 금융'}]},
+        cashFlow:{title:'자금흐름 분석',icon:'fa-money-bill-transfer',color:'#6366f1',items:[{data:'모계좌 입출금 거래내역',source:'<b>수집:</b> 거래일자, 은행명, 입/출구분, 거래금액<br>모계좌 일별 입출금 30일간 집계',usage:'입금(바)+출금(바)+순흐름(라인) 혼합 차트'},{data:'수시입출 거래내역',source:'<b>수집:</b> 거래일자, 은행명, 계좌구분, 적요, 입/출구분, 거래금액',usage:'급여 지급일, 매출 입금 주기 등 세부 패턴 분석'},{data:'자금 부족 구간 감지',source:'일별 순흐름 마이너스 자동 감지',usage:'마이너스 통장, 단기 대출 선제 제안'},{data:'이체결과·자금집금',source:'<b>수집:</b> 이체일자, 거래금액 / 집금일자, 집금금액',usage:'CMS 활용도 파악'}]},
+        proposalHistory:{title:'제안 이력 관리',icon:'fa-paper-plane',color:'#0d9488',items:[{data:'영업 제안 발송 기록',source:'데이터 분석으로 식별된 타겟에 발송한 제안 이력',usage:'6단계 파이프라인 추적'},{data:'제안 전환율',source:'발송 대비 승인 비율 + 계약 금액',usage:'KPI 6칸 + 도넛 차트'},{data:'30일 발송 추이',source:'일별 발송 건수 집계',usage:'바 차트로 영업 활동량 모니터링'}]},
+        campaignView:{title:'캠페인 관리',icon:'fa-bullhorn',color:'#f59e0b',items:[{data:'캠페인 타겟 고객',source:'수집 데이터 분석으로 조건별 자동 필터링',usage:'타겟→발송→회신→계약 + 진행률 바'},{data:'전환율',source:'발송 대비 계약 비율',usage:'10%+ 하이라이팅'},{data:'미발송 현황',source:'타겟 대비 미발송 수',usage:'일괄 발송 버튼'}]},
+        segmentView:{title:'고객 세그먼트',icon:'fa-users-viewfinder',color:'#8b5cf6',items:[{data:'복합 지표 스코어링',source:'전체 수집 데이터 종합 스코어',usage:'6개 세그먼트 자동 분류'},{data:'멤버 상세',source:'스코어, 매출, 당행 점유율',usage:'좌측 카드→우측 테이블 + 즉시 제안'},{data:'세그먼트 분포',source:'6개 세그먼트별 고객 수',usage:'바 차트로 포트폴리오 균형 파악'}]}
+    },
+    showDataGuide(v) {
+        const g=this._dataGuide[v]; if(!g) return;
+        const old=document.getElementById('data-guide-overlay'); if(old) old.remove();
+        const h=`<div id="data-guide-overlay" onclick="app.closeDataGuide()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] flex items-center justify-center" style="opacity:0;transition:opacity .3s"><div class="bg-white w-[720px] max-h-[85vh] rounded-xl shadow-2xl overflow-hidden flex flex-col" onclick="event.stopPropagation()" style="transform:scale(.95);transition:transform .3s"><div class="p-5 text-white flex justify-between items-center shrink-0" style="background:${g.color}"><div class="flex items-center space-x-3"><div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"><i class="fa-solid ${g.icon} text-lg"></i></div><div><h3 class="text-lg font-bold">${g.title}</h3><p class="text-xs mt-0.5 opacity-80">수집 데이터와 화면 활용 방식</p></div></div><button onclick="app.closeDataGuide()" class="opacity-70 hover:opacity-100"><i class="fa-solid fa-xmark text-xl"></i></button></div><div class="flex-1 overflow-y-auto p-6 space-y-4">${g.items.map((it,i)=>`<div class="border border-slate-200 rounded-lg overflow-hidden"><div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center space-x-2"><span class="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center text-white shrink-0" style="background:${g.color}">${i+1}</span><h4 class="text-[13px] font-bold text-slate-800">${it.data}</h4></div><div class="p-4 space-y-3"><div><p class="text-[10px] font-bold text-slate-400 uppercase mb-1.5"><i class="fa-solid fa-download mr-1"></i>수집 데이터</p><p class="text-[12px] text-slate-700 leading-relaxed">${it.source}</p></div><div class="border-t border-slate-100 pt-3"><p class="text-[10px] font-bold uppercase mb-1.5" style="color:${g.color}"><i class="fa-solid fa-chart-line mr-1"></i>화면 활용 방식</p><p class="text-[12px] text-slate-700 leading-relaxed">${it.usage}</p></div></div></div>`).join('')}</div><div class="px-6 py-3 border-t border-slate-200 bg-slate-50 shrink-0"><p class="text-[10px] text-slate-400 text-center"><i class="fa-solid fa-shield-halved mr-1"></i>위 데이터는 고객사 스케줄 PC의 CMS Agent를 통해 자동 수집됩니다.</p></div></div></div>`;
+        document.body.insertAdjacentHTML('beforeend',h);
+        setTimeout(()=>{const o=document.getElementById('data-guide-overlay');if(o){o.style.opacity='1';o.firstElementChild.style.transform='scale(1)';}},10);
+    },
+    closeDataGuide(){const o=document.getElementById('data-guide-overlay');if(o){o.style.opacity='0';o.firstElementChild.style.transform='scale(.95)';setTimeout(()=>o.remove(),300);}}
 };
+
+document.addEventListener('click',function(e){
+    const tip=e.target.closest('.info-tip');
+    const old=document.getElementById('floating-tip');if(old)old.remove();
+    if(!tip)return; e.stopPropagation();
+    const box=tip.querySelector('.tip-box');if(!box)return;
+    const rect=tip.getBoundingClientRect();
+    const div=document.createElement('div');div.id='floating-tip';div.innerHTML=box.innerHTML;
+    div.style.cssText='position:fixed;z-index:99999;width:360px;padding:14px 16px;background:#1e293b;color:#e2e8f0;border-radius:10px;font-size:12px;line-height:1.7;font-weight:500;box-shadow:0 12px 32px rgba(0,0,0,0.3);opacity:0;transition:opacity .2s;';
+    div.querySelectorAll('b').forEach(b=>b.style.color='#5eead4');
+    document.body.appendChild(div);
+    let top=rect.top-div.offsetHeight-10;let left=rect.left+rect.width/2-180;
+    if(top<10)top=rect.bottom+10;if(left<10)left=10;if(left+360>window.innerWidth-10)left=window.innerWidth-370;
+    div.style.top=top+'px';div.style.left=left+'px';
+    setTimeout(()=>{div.style.opacity='1';},10);
+    setTimeout(()=>{document.addEventListener('click',function handler(){const el=document.getElementById('floating-tip');if(el){el.style.opacity='0';setTimeout(()=>el.remove(),200);}document.removeEventListener('click',handler);});},50);
+});
 
 window.onload = () => app.checkSession();

@@ -52,11 +52,11 @@ const dashboardView = {
             <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-5" id="kpi-cards">${this.renderKPI(d)}</div>
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-5">
                 <div class="lg:col-span-8 bg-white border border-slate-200 rounded flex flex-col shadow-sm">
-                    <div class="px-5 py-3 border-b border-slate-100 flex justify-between items-center"><h3 class="text-[13px] font-bold text-slate-800">시간대별 트래픽 및 장애 발생 추이</h3></div>
+                    <div class="px-5 py-3 border-b border-slate-100 flex justify-between items-center"><h3 class="text-[13px] font-bold text-slate-800">시간대별 트래픽 및 장애 발생 추이<span class="info-tip"><i class="fa-solid fa-circle-info"></i><span class="tip-box"><b>수집:</b> Agent Flag 수신 로그 (최근 7일)<br>일별 장애 건수를 라인 차트로 표시합니다.</span></span></h3></div>
                     <div class="p-5 flex-1 min-h-[260px] relative"><canvas id="mainLineChart"></canvas></div>
                 </div>
                 <div class="lg:col-span-4 bg-white border border-slate-200 rounded flex flex-col shadow-sm">
-                    <div class="px-5 py-3 border-b border-slate-100"><h3 class="text-[13px] font-bold text-slate-800">단말 실시간 상태 분포도</h3></div>
+                    <div class="px-5 py-3 border-b border-slate-100"><h3 class="text-[13px] font-bold text-slate-800">단말 실시간 상태 분포도<span class="info-tip"><i class="fa-solid fa-circle-info"></i><span class="tip-box"><b>수집:</b> 전체 Agent Flag 수신 상태<br>300대 단말을 정상/주의/장애/지속장애로 분류한 도넛 차트입니다.</span></span></h3></div>
                     <div class="p-5 flex-1 flex flex-col">
                         <div class="h-[150px] relative flex justify-center items-center mb-5"><canvas id="mainDoughnutChart"></canvas></div>
                         <div class="space-y-2 mt-auto" id="doughnut-legend">${this.renderLegend(d)}</div>
@@ -66,21 +66,21 @@ const dashboardView = {
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
                 <div class="bg-white border border-slate-200 rounded overflow-hidden shadow-sm">
                     <div class="px-4 py-3 border-b border-slate-200 bg-red-50 flex justify-between items-center">
-                        <h3 class="text-[13px] font-bold text-red-700"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>금일 장애 현황</h3>
+                        <h3 class="text-[13px] font-bold text-red-700"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>금일 장애 현황<span class="info-tip"><i class="fa-solid fa-circle-info"></i><span class="tip-box"><b>판정:</b> Flag 미수신 30분+<br>오늘 장애 판정된 고객사 목록입니다.</span></span></h3>
                         <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold">${d.todayErrors.length}건</span>
                     </div>
                     <div class="max-h-[200px] overflow-y-auto" id="today-errors">${this.renderTodayErrors(d.todayErrors)}</div>
                 </div>
                 <div class="bg-white border border-slate-200 rounded overflow-hidden shadow-sm">
                     <div class="px-4 py-3 border-b border-slate-200 bg-amber-50 flex justify-between items-center">
-                        <h3 class="text-[13px] font-bold text-amber-700"><i class="fa-solid fa-repeat mr-1.5"></i>반복 장애 고객 (7일)</h3>
+                        <h3 class="text-[13px] font-bold text-amber-700"><i class="fa-solid fa-repeat mr-1.5"></i>반복 장애 고객 (7일)<span class="info-tip"><i class="fa-solid fa-circle-info"></i><span class="tip-box"><b>판정:</b> 7일 내 2회+ 장애<br>반복 장애 고객사입니다. 인프라 점검이 필요합니다.</span></span></h3>
                         <span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-bold">${d.repeatOffenders.length}건</span>
                     </div>
                     <div class="max-h-[200px] overflow-y-auto" id="repeat-offenders">${this.renderRepeatOffenders(d.repeatOffenders)}</div>
                 </div>
                 <div class="bg-white border border-slate-200 rounded overflow-hidden shadow-sm">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                        <h3 class="text-[13px] font-bold text-slate-800"><i class="fa-solid fa-bell mr-1.5"></i>최근 시스템 알람</h3>
+                        <h3 class="text-[13px] font-bold text-slate-800"><i class="fa-solid fa-bell mr-1.5"></i>최근 시스템 알람<span class="info-tip"><i class="fa-solid fa-circle-info"></i><span class="tip-box"><b>수집:</b> Agent Flag 이벤트 로그<br>최근 시스템 이벤트(장애, 복구, 재구동)를 시간순으로 표시합니다.</span></span></h3>
                         <a href="#" onclick="app.loadView('flagHistory', document.querySelectorAll('[data-menu]')[2])" class="text-[11px] text-teal-600 font-bold hover:underline">전체 &rarr;</a>
                     </div>
                     <div class="max-h-[200px] overflow-y-auto">
@@ -90,7 +90,7 @@ const dashboardView = {
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                        <h3 class="text-[13px] font-bold text-slate-800">금일 마케팅 데이터 수집 현황</h3>
+                        <h3 class="text-[13px] font-bold text-slate-800">금일 마케팅 데이터 수집 현황<span class="info-tip"><i class="fa-solid fa-circle-info"></i><span class="tip-box"><b>수집:</b> 자산현황, B2B거래, 카드승인, 세금계산서<br>CMS Agent가 수집한 금융 데이터 건수입니다.</span></span></h3>
                         <span class="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-bold">자동 수집 중</span>
                     </div>
                     <div class="grid grid-cols-4 gap-3 p-4" id="marketing-data">${this.renderMarketingStats(d)}</div>
