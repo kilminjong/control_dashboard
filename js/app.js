@@ -67,7 +67,7 @@ const app = {
         this.injectMonitoringModal();  
         this.injectProposalModal();
         const firstMenu = document.querySelector('[data-menu]');
-        this.loadView('dashboard', firstMenu);
+        this.loadView('dataDashboard', firstMenu);
     },
 
     injectProposalModal() {

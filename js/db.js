@@ -314,13 +314,40 @@ const DB = {
 
     // ─── 일별 자금흐름 (고객사별 30일) ───
     _genCashFlow() {
-        this.COMPANIES.forEach(comp => {
+        const profiles = [
+            { hanaRatio: 0.72, deficitBias: 0.10 },
+            { hanaRatio: 0.45, deficitBias: 0.22 },
+            { hanaRatio: 0.31, deficitBias: 0.45 },
+            { hanaRatio: 0.68, deficitBias: 0.08 },
+            { hanaRatio: 0.55, deficitBias: 0.15 },
+            { hanaRatio: 0.40, deficitBias: 0.30 },
+            { hanaRatio: 0.62, deficitBias: 0.12 },
+            { hanaRatio: 0.38, deficitBias: 0.38 },
+            { hanaRatio: 0.58, deficitBias: 0.10 },
+            { hanaRatio: 0.70, deficitBias: 0.08 },
+            { hanaRatio: 0.42, deficitBias: 0.28 },
+            { hanaRatio: 0.50, deficitBias: 0.20 },
+        ];
+        this.COMPANIES.forEach((comp, ci) => {
+            const prof = profiles[ci % profiles.length];
             for (let i = 29; i >= 0; i--) {
                 const d = new Date(Date.now() - i * 86400000);
                 const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
-                const inflow = this._rand(20, 120) * 1000000;
-                const outflow = this._rand(15, 90) * 1000000;
-                this._cashFlow.push({ company: comp, date: dateStr, inflow, outflow, net: inflow - outflow });
+                const baseIn  = this._rand(20, 120) * 1000000;
+                const baseOut = this._rand(15, 90)  * 1000000;
+                const hr = Math.min(0.95, Math.max(0.05, prof.hanaRatio + (Math.random()-0.5)*0.1));
+                const hanaIn   = Math.round(baseIn  * hr);
+                const otherIn  = baseIn  - hanaIn;
+                const hanaOut  = Math.round(baseOut * hr);
+                const otherOut = baseOut - hanaOut;
+                const finalOut = Math.random() < prof.deficitBias ? Math.round(baseOut*(1.1+Math.random()*0.4)) : baseOut;
+                const net = baseIn - finalOut;
+                this._cashFlow.push({
+                    company: comp, date: dateStr,
+                    inflow: baseIn, outflow: finalOut, net,
+                    hanaIn, otherIn, hanaOut, otherOut,
+                    hanaRatio: Math.round(hr*100), isDeficit: net < 0
+                });
             }
         });
     },
@@ -538,6 +565,74 @@ const DB = {
     },
     getCashFlowCompanies() {
         return [...new Set(this._cashFlow.map(c => c.company))];
+    },
+    getCashFlowBankSplit(company) {
+        const data = company ? this._cashFlow.filter(c=>c.company===company) : this._cashFlow;
+        let hanaIn=0,otherIn=0,hanaOut=0,otherOut=0;
+        data.forEach(c=>{hanaIn+=(c.hanaIn||0);otherIn+=(c.otherIn||0);hanaOut+=(c.hanaOut||0);otherOut+=(c.otherOut||0);});
+        const tIn=hanaIn+otherIn, tOut=hanaOut+otherOut;
+        return { hanaIn, otherIn, hanaOut, otherOut, hanaInRatio:tIn>0?Math.round(hanaIn/tIn*100):0, hanaOutRatio:tOut>0?Math.round(hanaOut/tOut*100):0 };
+    },
+    getCashFlowBankSplitByDate(company) {
+        if (company) return this._cashFlow.filter(c=>c.company===company);
+        const map={};
+        this._cashFlow.forEach(c=>{
+            if(!map[c.date]) map[c.date]={date:c.date,hanaIn:0,otherIn:0,hanaOut:0,otherOut:0};
+            map[c.date].hanaIn+=(c.hanaIn||0); map[c.date].otherIn+=(c.otherIn||0);
+            map[c.date].hanaOut+=(c.hanaOut||0); map[c.date].otherOut+=(c.otherOut||0);
+        });
+        return Object.values(map);
+    },
+    getCashFlowScore(company) {
+        const flows = this.getCashFlow(company);
+        if(!flows.length) return {score:0,grade:'D',gradeColor:'#ef4444',gradeBg:'#fef2f2',deficitDays:0,maxConsecutiveDeficit:0,avgNet:0};
+        const deficitDays = flows.filter(f=>f.net<0).length;
+        const deficitRatio = deficitDays/flows.length;
+        let maxConsec=0,cur=0;
+        flows.forEach(f=>{if(f.net<0){cur++;maxConsec=Math.max(maxConsec,cur);}else cur=0;});
+        const nets=flows.map(f=>f.net);
+        const avg=nets.reduce((s,v)=>s+v,0)/nets.length;
+        const std=Math.sqrt(nets.reduce((s,v)=>s+(v-avg)**2,0)/nets.length);
+        const normStd=Math.min(1,std/(100*1000000));
+        const hanaAvg=flows.reduce((s,f)=>s+(f.hanaRatio||50),0)/flows.length/100;
+        let score=100-deficitRatio*40-maxConsec*5-normStd*20+(hanaAvg-0.5)*20;
+        score=Math.max(0,Math.min(100,Math.round(score)));
+        const grade=score>=80?'A':score>=60?'B':score>=40?'C':'D';
+        const gradeColor=score>=80?'#0d9488':score>=60?'#3b82f6':score>=40?'#f59e0b':'#ef4444';
+        const gradeBg=score>=80?'#f0fdf4':score>=60?'#eff6ff':score>=40?'#fffbeb':'#fef2f2';
+        return {score,grade,gradeColor,gradeBg,deficitDays,maxConsecutiveDeficit:maxConsec,avgNet:Math.round(avg)};
+    },
+    getCashFlowDangerZones(company) {
+        const flows=this.getCashFlow(company);
+        const zones=[]; let start=null;
+        flows.forEach((f,i)=>{
+            if(f.net<0&&start===null) start=i;
+            if((f.net>=0||i===flows.length-1)&&start!==null){
+                if(i-start>=1) zones.push({startIdx:start,endIdx:f.net<0?i:i-1});
+                start=null;
+            }
+        });
+        return zones;
+    },
+    getOtherBankTop(n) {
+        const byComp={};
+        this._assets.forEach(a=>{
+            if(!byComp[a.name]) byComp[a.name]={name:a.name,total:0,hana:0,other:0,items:[],d30:0};
+            byComp[a.name].total+=a.amount;
+            if(a.bank&&a.bank.includes('하나')) byComp[a.name].hana+=a.amount;
+            else byComp[a.name].other+=a.amount;
+            byComp[a.name].items.push(a);
+            if(a.dday<=30) byComp[a.name].d30++;
+        });
+        return Object.values(byComp)
+            .filter(c=>c.total>0)
+            .map(c=>({...c,
+                otherRatio:Math.round(c.other/c.total*100),
+                hanaRatio:Math.round(c.hana/c.total*100),
+                topBank:c.items.filter(a=>!a.bank.includes('하나')).sort((a,b)=>b.amount-a.amount)[0]?.bank||'-'
+            }))
+            .sort((a,b)=>b.otherRatio-a.otherRatio)
+            .slice(0,n||5);
     },
     getCashFlowRanking() {
         const map = {};
